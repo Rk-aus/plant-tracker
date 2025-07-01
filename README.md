@@ -19,7 +19,13 @@ A bilingual full-stack web app to track and manage plants in both English and Ja
 
 ## 📁 Project Structure
 
-<pre> <code>```txt plant_tracker/ ├── frontend/ # React UI ├── backend/ # Flask API ├── .gitignore └── README.md ```</code> </pre>
+```txt
+plant_tracker/
+├── frontend/    # React UI
+├── backend/     # Flask API
+├── .gitignore
+└── README.md
+```
 
 ## 🚀 Getting Started
 

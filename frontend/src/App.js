@@ -173,7 +173,10 @@ function App() {
     // Return the promise chain here
     return fetch('REACT_APP_API_URL/plants', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.REACT_APP_API_KEY,
+      },
       body: JSON.stringify(formData),
     })
       .then((res) => {
@@ -205,6 +208,9 @@ function App() {
     try {
       const res = await fetch(`REACT_APP_API_URL/plants/${id}`, {
         method: 'DELETE',
+        headers: {
+          'x-api-key': process.env.REACT_APP_API_KEY,
+        },
       });
       if (!res.ok) {
         throw new Error();
@@ -239,7 +245,10 @@ function App() {
         `REACT_APP_API_URL/plants/${editFormData.plant_id}`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.REACT_APP_API_KEY,
+          },
           body: JSON.stringify(editFormData),
         }
       );

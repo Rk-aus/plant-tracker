@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.plant_db_class import PlantDB
+from utils.auth import require_api_key
 from datetime import datetime
 
 plants_bp = Blueprint("plants", __name__)
@@ -19,6 +20,7 @@ def parse_date(date_str):
 
 @plants_bp.route("/plants", methods=["POST"])
 def add_plant():
+    require_api_key()
     data = request.json
     print("🌱 Received POST:", data)
 
@@ -43,6 +45,7 @@ def add_plant():
 
 @plants_bp.route("/plants/<int:plant_id>", methods=["DELETE"])
 def delete_plant(plant_id):
+    require_api_key()
     try:
         db.delete_plant(plant_id)
         db.conn.commit()
@@ -55,6 +58,7 @@ def delete_plant(plant_id):
 
 @plants_bp.route("/plants/<int:plant_id>", methods=["PUT"])
 def update_plant(plant_id):
+    require_api_key()
     data = request.json
     try:
         db.update_plant(

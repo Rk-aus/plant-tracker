@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.plant_db_class import PlantDB
-from utils.auth import require_api_key
+from app.utils.auth import require_api_key
 from datetime import datetime
 
 plants_bp = Blueprint("plants", __name__)

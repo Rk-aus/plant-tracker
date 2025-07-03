@@ -79,8 +79,8 @@ function App() {
 
   const fetchAndUpdatePlants = async (sort = false) => {
     const url = sort
-      ? 'http://127.0.0.1:5000/plants/sort_by_date'
-      : 'http://127.0.0.1:5000/plants';
+      ? 'REACT_APP_API_URL/plants/sort_by_date'
+      : 'REACT_APP_API_URL/plants';
     try {
       const res = await fetch(url);
       const data = await res.json();
@@ -171,7 +171,7 @@ function App() {
     setSubmitting(true);
 
     // Return the promise chain here
-    return fetch('http://127.0.0.1:5000/plants', {
+    return fetch('REACT_APP_API_URL/plants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData),
@@ -187,7 +187,7 @@ function App() {
           /* reset fields */
         });
         setMessage({ type: 'success', text: labels[language].addMessage });
-        return fetch('http://127.0.0.1:5000/plants');
+        return fetch('REACT_APP_API_URL/plants');
       })
       .then((res) => res.json())
       .then((plants) => {
@@ -203,7 +203,7 @@ function App() {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`http://127.0.0.1:5000/plants/${id}`, {
+      const res = await fetch(`REACT_APP_API_URL/plants/${id}`, {
         method: 'DELETE',
       });
       if (!res.ok) {
@@ -236,7 +236,7 @@ function App() {
     }
     try {
       const res = await fetch(
-        `http://127.0.0.1:5000/plants/${editFormData.plant_id}`,
+        `REACT_APP_API_URL/plants/${editFormData.plant_id}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

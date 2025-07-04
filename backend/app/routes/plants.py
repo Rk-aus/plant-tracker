@@ -1,12 +1,10 @@
 from flask import Blueprint, request, jsonify
+from datetime import datetime
 from app.plant_db_class import PlantDB
 from app.utils.auth import require_api_key
-from datetime import datetime
 
 plants_bp = Blueprint("plants", __name__)
 db = PlantDB()
-
-# Helper function to parse date
 
 
 def parse_date(date_str):

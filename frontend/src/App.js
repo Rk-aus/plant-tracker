@@ -79,8 +79,8 @@ function App() {
 
   const fetchAndUpdatePlants = async (sort = false) => {
     const url = sort
-      ? 'REACT_APP_API_URL/plants/sort_by_date'
-      : 'REACT_APP_API_URL/plants';
+      ? `${process.env.REACT_APP_API_URL}/plants/sort_by_date`
+      : `${process.env.REACT_APP_API_URL}/plants`;
     try {
       const res = await fetch(url);
       const data = await res.json();
@@ -170,8 +170,7 @@ function App() {
 
     setSubmitting(true);
 
-    // Return the promise chain here
-    return fetch('REACT_APP_API_URL/plants', {
+    return fetch(`${process.env.REACT_APP_API_URL}/plants`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -190,7 +189,7 @@ function App() {
           /* reset fields */
         });
         setMessage({ type: 'success', text: labels[language].addMessage });
-        return fetch('REACT_APP_API_URL/plants');
+        return fetch(`${process.env.REACT_APP_API_URL}/plants`);
       })
       .then((res) => res.json())
       .then((plants) => {
@@ -206,7 +205,7 @@ function App() {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`REACT_APP_API_URL/plants/${id}`, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/plants/${id}`, {
         method: 'DELETE',
         headers: {
           'x-api-key': process.env.REACT_APP_API_KEY,
@@ -242,7 +241,7 @@ function App() {
     }
     try {
       const res = await fetch(
-        `REACT_APP_API_URL/plants/${editFormData.plant_id}`,
+        `${process.env.REACT_APP_API_URL}/plants/${editFormData.plant_id}`,
         {
           method: 'PUT',
           headers: {

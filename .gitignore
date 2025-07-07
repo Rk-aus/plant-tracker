@@ -7,6 +7,8 @@
 /backend/__pycache__/
 /backend/.env*
 /backend/venv/
+/backend/uploads/
+!/backend/uploads/.keep
 
 # General
 .DS_Store

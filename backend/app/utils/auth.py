@@ -2,6 +2,7 @@ import os
 from flask import request, jsonify
 from functools import wraps
 
+
 def require_api_key(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -9,4 +10,5 @@ def require_api_key(func):
         if api_key != os.getenv("API_KEY"):
             return jsonify({"error": "Unauthorized"}), 401
         return func(*args, **kwargs)
+
     return wrapper

@@ -24,7 +24,7 @@ class TestPlantDB(unittest.TestCase):
             self.db.insert_plant("", "Testaceae")
 
     def test_insert_plant_invalid_type(self):
-        with self.assertRaises(Exception): 
+        with self.assertRaises(Exception):
             self.db.insert_plant(123, True)
 
     def test_insert_with_custom_date(self):
@@ -34,19 +34,19 @@ class TestPlantDB(unittest.TestCase):
         self.db.insert_plant("Iris", "Iridaceae", custom_date)
         result = self.db.search_plant_by_name("Iris")
         self.assertTrue(result)
-        self.assertEqual(result[0][3], custom_date)  
+        self.assertEqual(result[0][3], custom_date)
 
     def test_delete_existing_plant(self):
         self.db.insert_plant("Basil", "Lamiaceae")
         plants = self.db.get_all_plants()
-        plant_id = plants[0][0]  
+        plant_id = plants[0][0]
         self.db.delete_plant(plant_id)
         results = self.db.get_all_plants()
         self.assertFalse(any(row[0] == plant_id for row in results))
 
     def test_delete_nonexistent_plant(self):
         try:
-            self.db.delete_plant(99999)  
+            self.db.delete_plant(99999)
         except Exception as e:
             self.fail(f"delete_plant raised an exception unexpectedly: {e}")
 
@@ -76,7 +76,7 @@ class TestPlantDB(unittest.TestCase):
     def test_update_plant_success(self):
         self.db.insert_plant("OldName", "OldClass")
         plants = self.db.search_plant_by_name("OldName")
-        plant_id = plants[0][0]  
+        plant_id = plants[0][0]
 
         self.db.update_plant(plant_id, "NewName", "NewClass")
         updated = self.db.search_plant_by_name("NewName")
@@ -84,9 +84,7 @@ class TestPlantDB(unittest.TestCase):
 
     def test_update_nonexistent_id(self):
         try:
-            self.db.update_plant(
-                99999, "Ghost", "Phantomaceae"
-            )  
+            self.db.update_plant(99999, "Ghost", "Phantomaceae")
         except Exception:
             self.fail("update_plant raised an exception unexpectedly")
 
@@ -124,7 +122,7 @@ class TestPlantDB(unittest.TestCase):
 
     def test_get_all_plants_empty(self):
         plants = self.db.get_all_plants()
-        self.assertEqual(plants, [])   
+        self.assertEqual(plants, [])
 
     def test_get_plant_details_existing(self):
         self.db.insert_plant("Daisy", "Asteraceae")
@@ -135,7 +133,7 @@ class TestPlantDB(unittest.TestCase):
         self.assertEqual(details[2], "Asteraceae")
 
     def test_get_plant_details_nonexistent(self):
-        result = self.db.get_plant_details(9999)   
+        result = self.db.get_plant_details(9999)
         self.assertIsNone(result)
 
     def test_list_plants_by_date_empty(self):
@@ -158,7 +156,7 @@ class TestPlantDB(unittest.TestCase):
         self.db.insert_plant("Rose", "Rosaceae", date(2024, 1, 1))
 
         results = self.db.list_plants_by_date()
-        names = [row[1] for row in results]  
+        names = [row[1] for row in results]
 
         # Expect newest to oldest
         self.assertEqual(names, ["Rose", "Mint", "Aloe"])
@@ -170,7 +168,7 @@ class TestPlantDB(unittest.TestCase):
 
     def test_search_case_insensitive(self):
         self.db.insert_plant("Tulip", "Liliaceae")
-        results = self.db.search_plant_by_name("tulip")  
+        results = self.db.search_plant_by_name("tulip")
         self.assertTrue(any("Tulip" in row for row in results))
 
     def test_search_partial_match(self):
@@ -182,7 +180,7 @@ class TestPlantDB(unittest.TestCase):
         self.db.insert_plant("Sunflower", "Asteraceae")
         self.db.insert_plant("Sundew", "Droseraceae")
         results = self.db.search_plant_by_name("Sun")
-        names = [row[1] for row in results]  
+        names = [row[1] for row in results]
         self.assertIn("Sunflower", names)
         self.assertIn("Sundew", names)
 

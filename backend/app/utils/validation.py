@@ -1,6 +1,7 @@
 from datetime import datetime
 from flask import jsonify
 
+
 def parse_date(date_str):
     if date_str:
         try:
@@ -8,6 +9,7 @@ def parse_date(date_str):
         except ValueError:
             return None
     return None
+
 
 def get_validated_date(date_str):
     parsed_date = parse_date(date_str)

@@ -25,11 +25,19 @@ class PlantDB:
         self.cur = self.conn.cursor()
 
     def insert_plant(
-        self, plant_name_en, plant_name_ja, class_en, class_ja, plant_date=None
+        self,
+        plant_name_en,
+        plant_name_ja,
+        plant_class_en,
+        plant_class_ja,
+        image_path,
+        botanical_name,
+        location,
+        plant_date=None,
     ):
         if not isinstance(plant_name_en, str) or not plant_name_en.strip():
             raise ValueError("English plant name must be a non-empty string.")
-        if not isinstance(class_en, str) or not class_en.strip():
+        if not isinstance(plant_class_en, str) or not plant_class_en.strip():
             raise ValueError("English plant class must be a non-empty string.")
         if plant_date is not None and not isinstance(plant_date, date):
             raise ValueError("plant_date must be a datetime.date object or None.")
@@ -39,17 +47,23 @@ class PlantDB:
             INSERT INTO plants (
                 plant_name_en,
                 plant_class_en,
-                plant_date,
                 plant_name_ja,
-                plant_class_ja
-            ) VALUES (%s, %s, %s, %s, %s);
+                plant_class_ja,
+                image_path,
+                botanical_name,
+                location,
+                plant_date
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
         """,
             (
                 plant_name_en,
-                class_en,
-                plant_date if plant_date else date.today(),
+                plant_class_en,
                 plant_name_ja,
-                class_ja,
+                plant_class_ja,
+                image_path,
+                botanical_name,
+                location,
+                plant_date if plant_date else date.today(),
             ),
         )
 
@@ -63,14 +77,17 @@ class PlantDB:
         self,
         plant_id,
         plant_name_en,
-        class_en,
+        plant_class_en,
+        plant_name_ja,
+        plant_class_ja,
+        image_path,
+        botanical_name,
+        location,
         plant_date=None,
-        plant_name_ja=None,
-        class_ja=None,
     ):
         if not isinstance(plant_name_en, str) or not plant_name_en.strip():
             raise ValueError("English name must be a non-empty string.")
-        if not isinstance(class_en, str) or not class_en.strip():
+        if not isinstance(plant_class_en, str) or not plant_class_en.strip():
             raise ValueError("English class must be a non-empty string.")
         if not isinstance(plant_id, int):
             raise ValueError("plant_id must be an integer.")
@@ -81,17 +98,23 @@ class PlantDB:
             SET
                 plant_name_en = %s,
                 plant_class_en = %s,
-                plant_date = %s,
                 plant_name_ja = %s,
-                plant_class_ja = %s
+                plant_class_ja = %s,
+                image_path = %s,
+                botanical_name = %s,
+                location = %s,
+                plant_date = %s
             WHERE plant_id = %s;
         """,
             (
                 plant_name_en,
-                class_en,
-                plant_date if plant_date else date.today(),
+                plant_class_en,
                 plant_name_ja,
-                class_ja,
+                plant_class_ja,
+                image_path,
+                botanical_name,
+                location,
+                plant_date if plant_date else date.today(),
                 plant_id,
             ),
         )
@@ -103,9 +126,12 @@ class PlantDB:
                 plant_id,
                 plant_name_en,
                 plant_class_en,
-                plant_date,
                 plant_name_ja,
-                plant_class_ja
+                plant_class_ja,
+                image_path,
+                botanical_name,
+                location,
+                plant_date
             FROM plants;
         """
         )
@@ -118,9 +144,12 @@ class PlantDB:
                 plant_id,
                 plant_name_en,
                 plant_class_en,
-                plant_date,
                 plant_name_ja,
-                plant_class_ja
+                plant_class_ja,
+                image_path,
+                botanical_name,
+                location,
+                plant_date
             FROM plants
             WHERE plant_id = %s;
         """,
@@ -135,9 +164,12 @@ class PlantDB:
                 plant_id,
                 plant_name_en,
                 plant_class_en,
-                plant_date,
                 plant_name_ja,
-                plant_class_ja
+                plant_class_ja,
+                image_path,
+                botanical_name,
+                location,
+                plant_date
             FROM plants
             ORDER BY plant_date DESC;
         """
@@ -156,9 +188,12 @@ class PlantDB:
                 plant_id,
                 plant_name_en,
                 plant_class_en,
-                plant_date,
                 plant_name_ja,
-                plant_class_ja
+                plant_class_ja,
+                image_path,
+                botanical_name,
+                location,
+                plant_date
             FROM plants
             WHERE {column} ILIKE %s;
         """,

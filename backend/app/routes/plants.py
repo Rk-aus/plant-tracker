@@ -1,22 +1,11 @@
-import os
-from flask import Blueprint, request, jsonify, current_app
-from datetime import datetime
-from werkzeug.utils import secure_filename
+from flask import Blueprint, request, jsonify
 from app.plant_db_class import PlantDB
 from app.utils.auth import require_api_key
+from app.utils.image_helpers import save_uploaded_image
+from app.utils.validation import get_validated_date
 
 plants_bp = Blueprint("plants", __name__)
 db = PlantDB()
-
-
-def parse_date(date_str):
-    if date_str:
-        try:
-            return datetime.strptime(date_str, "%Y-%m-%d").date()
-        except ValueError:
-            return None
-    return None
-
 
 @plants_bp.route("/plants", methods=["POST"])
 def add_plant():
@@ -26,21 +15,18 @@ def add_plant():
 
     data = request.form
     image = request.files.get("image")
-    image_path = None
-
-    if image and image.filename:
-        filename = secure_filename(image.filename)
-        save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-        image.save(save_path)
-        image_path = filename
+    image_path = save_uploaded_image(image)
 
     plant_name_en = data.get("plant_name_en")
     plant_name_ja = data.get("plant_name_ja")
-    class_en = data.get("plant_class_en")
-    class_ja = data.get("plant_class_ja")
+    plant_class_en = data.get("plant_class_en")
+    plant_class_ja = data.get("plant_class_ja")
     botanical_name = data.get("botanical_name")
     location = data.get("location")
-    plant_date = parse_date(data.get("plant_date"))
+    plant_date_str = data.get("plant_date")
+    plant_date, error_response, status_code = get_validated_date(plant_date_str)
+    if error_response:
+        return error_response, status_code
 
     if data.get("plant_date") and plant_date is None:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
@@ -48,10 +34,10 @@ def add_plant():
     try:
         db.insert_plant(
             plant_name_en,
-            plant_name_ja,
-            class_en,
-            class_ja,
+            plant_class_en,
             plant_date,
+            plant_name_ja,
+            plant_class_ja,
             image_path,
             botanical_name,
             location,
@@ -80,15 +66,39 @@ def delete_plant(plant_id):
 @plants_bp.route("/plants/<int:plant_id>", methods=["PUT"])
 def update_plant(plant_id):
     require_api_key()
-    data = request.json
+
+    if not request.content_type.startswith("multipart/form-data"):
+        return jsonify({"error": "Content-Type must be multipart/form-data"}), 415
+
+    data = request.form
+    image = request.files.get("image")
+    image_path = save_uploaded_image(image)
+
+    plant_name_en = data.get("plant_name_en")
+    plant_name_ja = data.get("plant_name_ja")
+    plant_class_en = data.get("plant_class_en")
+    plant_class_ja = data.get("plant_class_ja")
+    botanical_name = data.get("botanical_name")
+    location = data.get("location")
+    plant_date_str = data.get("plant_date")
+    plant_date, error_response, status_code = get_validated_date(plant_date_str)
+    if error_response:
+        return error_response, status_code
+
+    if data.get("plant_date") and plant_date is None:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+
     try:
         db.update_plant(
             plant_id,
-            data.get("plant_name_en"),
-            data.get("plant_class_en"),
-            parse_date(data.get("plant_date")),
-            data.get("plant_name_ja"),
-            data.get("plant_class_ja"),
+            plant_name_en,
+            plant_class_en,
+            plant_date,
+            plant_name_ja,
+            plant_class_ja,
+            image_path,
+            botanical_name,
+            location
         )
         db.conn.commit()
         return jsonify({"message": f"Plant {plant_id} updated"})

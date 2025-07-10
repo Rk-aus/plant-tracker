@@ -1,6 +1,4 @@
-#!/bin/sh
-'''exec' "/Users/rk1022aus/Library/Mobile Documents/com~apple~CloudDocs/plant_tracker/venv/bin/python3" "$0" "$@"
-' '''
+#!/Users/rk1022aus/Projects/plant_tracker/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

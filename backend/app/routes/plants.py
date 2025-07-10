@@ -3,6 +3,7 @@ from app.plant_db_class import PlantDB
 from app.utils.auth import require_api_key
 from app.utils.image_helpers import save_uploaded_image
 from app.utils.validation import get_validated_date
+from app.utils.location_helpers import save_image_and_get_location
 
 plants_bp = Blueprint("plants", __name__)
 db = PlantDB()
@@ -16,7 +17,8 @@ def add_plant():
 
     data = request.form
     image = request.files.get("image")
-    image_path = save_uploaded_image(image)
+    manual_location = data.get("location")
+    image_path, location = save_image_and_get_location(image, manual_location)
 
     plant_name_en = data.get("plant_name_en")
     plant_name_ja = data.get("plant_name_ja")
@@ -73,7 +75,8 @@ def update_plant(plant_id):
 
     data = request.form
     image = request.files.get("image")
-    image_path = save_uploaded_image(image)
+    manual_location = data.get("location")
+    image_path, location = save_image_and_get_location(image, manual_location)
 
     plant_name_en = data.get("plant_name_en")
     plant_name_ja = data.get("plant_name_ja")

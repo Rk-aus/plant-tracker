@@ -1,16 +1,21 @@
 # Frontend
 /frontend/node_modules/
 /frontend/build/
-/frontend/.env*
 
 # Backend
 /backend/__pycache__/
-/backend/.env*
 /backend/venv/
-/backend/uploads/
+/backend/uploads/*
 !/backend/uploads/.keep
 
 # General
 .DS_Store
 *.log
-.env
+**/.env*
+
+# Testing artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+.tox/

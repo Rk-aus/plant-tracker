@@ -1,9 +1,8 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response, url_for
 from app.plant_db_class import PlantDB
 from app.utils.auth import require_api_key
-from app.utils.image_helpers import save_uploaded_image
 from app.utils.validation import get_validated_date
-from app.utils.location_helpers import save_image_and_get_location
+from backend.app.utils.image_helpers import save_image_and_get_location
 
 plants_bp = Blueprint("plants", __name__)
 db = PlantDB()
@@ -25,14 +24,10 @@ def add_plant():
     plant_class_en = data.get("plant_class_en")
     plant_class_ja = data.get("plant_class_ja")
     botanical_name = data.get("botanical_name")
-    location = data.get("location")
     plant_date_str = data.get("plant_date")
     plant_date, error_response, status_code = get_validated_date(plant_date_str)
     if error_response:
         return error_response, status_code
-
-    if data.get("plant_date") and plant_date is None:
-        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
 
     try:
         db.insert_plant(
@@ -53,19 +48,6 @@ def add_plant():
         return jsonify({"error": str(e)}), 400
 
 
-@plants_bp.route("/plants/<int:plant_id>", methods=["DELETE"])
-def delete_plant(plant_id):
-    require_api_key()
-    try:
-        db.delete_plant(plant_id)
-        db.conn.commit()
-        return jsonify({"message": f"Plant {plant_id} deleted"})
-    except Exception as e:
-        db.conn.rollback()
-        print("❌ Error deleting plant:", e)
-        return jsonify({"error": str(e)}), 400
-
-
 @plants_bp.route("/plants/<int:plant_id>", methods=["PUT"])
 def update_plant(plant_id):
     require_api_key()
@@ -83,14 +65,10 @@ def update_plant(plant_id):
     plant_class_en = data.get("plant_class_en")
     plant_class_ja = data.get("plant_class_ja")
     botanical_name = data.get("botanical_name")
-    location = data.get("location")
     plant_date_str = data.get("plant_date")
     plant_date, error_response, status_code = get_validated_date(plant_date_str)
     if error_response:
         return error_response, status_code
-
-    if data.get("plant_date") and plant_date is None:
-        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
 
     try:
         db.update_plant(
@@ -105,12 +83,26 @@ def update_plant(plant_id):
             plant_date,
         )
         db.conn.commit()
-        return jsonify({"message": f"Plant {plant_id} updated"})
+        response = make_response(jsonify({"message": f"Plant {plant_id} updated"}), 200)
+        response.headers["Location"] = url_for("plants.get_plant", plant_id)
+        return response
     except Exception as e:
         db.conn.rollback()
         print("❌ Error updating plant:", e)
         return jsonify({"error": str(e)}), 400
 
+
+@plants_bp.route("/plants/<int:plant_id>", methods=["DELETE"])
+def delete_plant(plant_id):
+    require_api_key()
+    try:
+        db.delete_plant(plant_id)
+        db.conn.commit()
+        return ("", 204)
+    except Exception as e:
+        db.conn.rollback()
+        print("❌ Error deleting plant:", e)
+        return jsonify({"error": str(e)}), 400
 
 @plants_bp.route("/plants", methods=["GET"])
 def get_all_plants():

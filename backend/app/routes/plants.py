@@ -1,30 +1,59 @@
 from flask import Blueprint, request, jsonify, make_response, url_for
-from app.plant_db_class import PlantDB
 from app.utils.auth import require_api_key
-from app.utils.validation import get_validated_date
-from backend.app.utils.image_helpers import save_image_and_get_location
+from app.utils.validation import (
+    get_validated_date,
+    validate_required_image,
+    validate_required_fields,
+)
+from app.utils.image_helpers import save_image_and_get_location
 
 plants_bp = Blueprint("plants", __name__)
-db = PlantDB()
+db = None
+
+
+def init_db():
+    global db
+    if db is None:
+        from app.plant_db_class import PlantDB
+
+        db = PlantDB()
 
 
 @plants_bp.route("/plants", methods=["POST"])
 def add_plant():
+    init_db()
     require_api_key()
     if not request.content_type.startswith("multipart/form-data"):
         return jsonify({"error": "Content-Type must be multipart/form-data"}), 415
 
     data = request.form
+
     image = request.files.get("image")
+    error_response, status_code = validate_required_image(image)
+    if error_response:
+        return error_response, status_code
+
     manual_location = data.get("location")
     image_path, location = save_image_and_get_location(image, manual_location)
 
-    plant_name_en = data.get("plant_name_en")
-    plant_name_ja = data.get("plant_name_ja")
-    plant_class_en = data.get("plant_class_en")
-    plant_class_ja = data.get("plant_class_ja")
-    botanical_name = data.get("botanical_name")
+    required_fields = [
+        "plant_name_en",
+        "plant_name_ja",
+        "plant_class_en",
+        "plant_class_ja",
+    ]
+
+    data, error_response, status_code = validate_required_fields(data, required_fields)
+    if error_response:
+        return error_response, status_code
+
+    plant_name_en = data.get("plant_name_en").strip()
+    plant_name_ja = data.get("plant_name_ja").strip()
+    plant_class_en = data.get("plant_class_en").strip()
+    plant_class_ja = data.get("plant_class_ja").strip()
+    botanical_name = data.get("botanical_name", "").strip()
     plant_date_str = data.get("plant_date")
+
     plant_date, error_response, status_code = get_validated_date(plant_date_str)
     if error_response:
         return error_response, status_code
@@ -50,21 +79,28 @@ def add_plant():
 
 @plants_bp.route("/plants/<int:plant_id>", methods=["PUT"])
 def update_plant(plant_id):
+    init_db()
     require_api_key()
 
     if not request.content_type.startswith("multipart/form-data"):
         return jsonify({"error": "Content-Type must be multipart/form-data"}), 415
 
     data = request.form
+
     image = request.files.get("image")
+    error_response, status_code = validate_required_image(image)
+    if error_response:
+        return error_response, status_code
+
     manual_location = data.get("location")
     image_path, location = save_image_and_get_location(image, manual_location)
 
-    plant_name_en = data.get("plant_name_en")
-    plant_name_ja = data.get("plant_name_ja")
-    plant_class_en = data.get("plant_class_en")
-    plant_class_ja = data.get("plant_class_ja")
-    botanical_name = data.get("botanical_name")
+    plant_name_en = data.get("plant_name_en").strip()
+    plant_name_ja = data.get("plant_name_ja").strip()
+    plant_class_en = data.get("plant_class_en").strip()
+    plant_class_ja = data.get("plant_class_ja").strip()
+    botanical_name = data.get("botanical_name", "").strip()
+
     plant_date_str = data.get("plant_date")
     plant_date, error_response, status_code = get_validated_date(plant_date_str)
     if error_response:
@@ -84,7 +120,7 @@ def update_plant(plant_id):
         )
         db.conn.commit()
         response = make_response(jsonify({"message": f"Plant {plant_id} updated"}), 200)
-        response.headers["Location"] = url_for("plants.get_plant", plant_id)
+        response.headers["Location"] = url_for("plants.get_plant", plant_id=plant_id)
         return response
     except Exception as e:
         db.conn.rollback()
@@ -94,6 +130,7 @@ def update_plant(plant_id):
 
 @plants_bp.route("/plants/<int:plant_id>", methods=["DELETE"])
 def delete_plant(plant_id):
+    init_db()
     require_api_key()
     try:
         db.delete_plant(plant_id)
@@ -104,8 +141,10 @@ def delete_plant(plant_id):
         print("❌ Error deleting plant:", e)
         return jsonify({"error": str(e)}), 400
 
+
 @plants_bp.route("/plants", methods=["GET"])
 def get_all_plants():
+    init_db()
     plants = db.get_all_plants()
     print("🌱 Received GET:", plants)
     result = [
@@ -127,6 +166,7 @@ def get_all_plants():
 
 @plants_bp.route("/plants/<int:plant_id>", methods=["GET"])
 def get_plant(plant_id):
+    init_db()
     plant = db.get_plant_details(plant_id)
     print("🌱 Received GET:", plant)
     if plant:
@@ -149,6 +189,7 @@ def get_plant(plant_id):
 
 @plants_bp.route("/plants/sort_by_date", methods=["GET"])
 def get_plants_sorted_by_date():
+    init_db()
     sorted_rows = db.list_plants_by_date()
     print("🌱 Received GET:", sorted_rows)
     formatted = [

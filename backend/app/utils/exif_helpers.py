@@ -14,11 +14,11 @@ def get_coordinates(exif_data):
 
     try:
         lat = convert_to_degrees(gps_info[2])
-        if gps_info[1] == b'S':
+        if gps_info[1] == b"S":
             lat = -lat
 
         lon = convert_to_degrees(gps_info[4])
-        if gps_info[3] == b'W':
+        if gps_info[3] == b"W":
             lon = -lon
 
         return lat, lon

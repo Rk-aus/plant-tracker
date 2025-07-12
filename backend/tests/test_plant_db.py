@@ -16,10 +16,14 @@ class TestPlantDB(unittest.TestCase):
 
     def insert_dummy_plant(self, name="SamplePlant", plant_date=None):
         return self.db.insert_plant(
-            name, "サンプル",
-            "Sampleaceae", "サンプル科",
-            "sample.jpg", "Plantus exampleus", "TestTown",
-            plant_date or date.today()
+            name,
+            "サンプル",
+            "Sampleaceae",
+            "サンプル科",
+            "sample.jpg",
+            "Plantus exampleus",
+            "TestTown",
+            plant_date or date.today(),
         )
 
     def test_insert_plant(self):
@@ -85,28 +89,55 @@ class TestPlantDB(unittest.TestCase):
         plants = self.db.search_plant_by_name("OldName")
         plant_id = plants[0][0]
         self.db.update_plant(
-            plant_id, "NewName", "新しい", "NewClass", "新しい科",
-            "new.jpg", "NewBotanical", "NewCity", date(2023, 6, 1)
+            plant_id,
+            "NewName",
+            "新しい",
+            "NewClass",
+            "新しい科",
+            "new.jpg",
+            "NewBotanical",
+            "NewCity",
+            date(2023, 6, 1),
         )
         updated = self.db.search_plant_by_name("NewName")
         self.assertTrue(any("NewName" in row for row in updated))
 
     def test_update_nonexistent_id(self):
         try:
-            self.db.update_plant(99999, "Ghost", "ゴースト", "Phantomaceae", "幻科", "ghost.jpg", "Ghostus", "Void")
+            self.db.update_plant(
+                99999,
+                "Ghost",
+                "ゴースト",
+                "Phantomaceae",
+                "幻科",
+                "ghost.jpg",
+                "Ghostus",
+                "Void",
+            )
         except Exception:
             self.fail("update_plant raised an exception unexpectedly")
 
     def test_update_invalid_id_type(self):
         with self.assertRaises(Exception):
-            self.db.update_plant("not-an-id", "Name", "名", "Class", "科", "img.jpg", "Botanical", "Place")
+            self.db.update_plant(
+                "not-an-id",
+                "Name",
+                "名",
+                "Class",
+                "科",
+                "img.jpg",
+                "Botanical",
+                "Place",
+            )
 
     def test_update_empty_name(self):
         self.insert_dummy_plant("TestName")
         plants = self.db.search_plant_by_name("TestName")
         plant_id = plants[0][0]
         with self.assertRaises(Exception):
-            self.db.update_plant(plant_id, "", "", "Class", "科", "img.jpg", "Botanical", "Place")
+            self.db.update_plant(
+                plant_id, "", "", "Class", "科", "img.jpg", "Botanical", "Place"
+            )
 
     def test_get_all_plants_returns_list(self):
         results = self.db.get_all_plants()

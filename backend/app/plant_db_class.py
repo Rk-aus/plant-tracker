@@ -6,15 +6,7 @@ from datetime import date
 
 class PlantDB:
     def __init__(self):
-        (
-            load_dotenv(".env.test", override=True)
-            if os.getenv("ENV") == "test"
-            else load_dotenv(override=True)
-        )
-
-        print("🧪 ENV =", os.getenv("ENV"))
-        print("🌱 DB_NAME =", os.getenv("DB_NAME"))
-
+        print("🔒 DB_PASSWORD =", os.getenv("DB_PASSWORD"))
         self.conn = pg2.connect(
             database=os.getenv("DB_NAME"),
             user=os.getenv("DB_USER"),

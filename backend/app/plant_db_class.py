@@ -1,6 +1,5 @@
-import psycopg2 as pg2
-from dotenv import load_dotenv
 import os
+import psycopg2 as pg2
 from datetime import date
 
 

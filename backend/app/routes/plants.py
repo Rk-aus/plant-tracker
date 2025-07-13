@@ -20,9 +20,9 @@ def init_db():
 
 
 @plants_bp.route("/plants", methods=["POST"])
+@require_api_key
 def add_plant():
     init_db()
-    require_api_key()
     if not request.content_type.startswith("multipart/form-data"):
         return jsonify({"error": "Content-Type must be multipart/form-data"}), 415
 
@@ -73,14 +73,15 @@ def add_plant():
         return jsonify({"message": "Plant added"}), 201
     except Exception as e:
         db.conn.rollback()
-        print("❌ Error adding plant:", e)
+        if "duplicate key value" in str(e):
+            return jsonify({"error": "Duplicate plant name"}), 409
         return jsonify({"error": str(e)}), 400
 
 
 @plants_bp.route("/plants/<int:plant_id>", methods=["PUT"])
+@require_api_key
 def update_plant(plant_id):
     init_db()
-    require_api_key()
 
     if not request.content_type.startswith("multipart/form-data"):
         return jsonify({"error": "Content-Type must be multipart/form-data"}), 415
@@ -129,9 +130,9 @@ def update_plant(plant_id):
 
 
 @plants_bp.route("/plants/<int:plant_id>", methods=["DELETE"])
+@require_api_key
 def delete_plant(plant_id):
     init_db()
-    require_api_key()
     try:
         db.delete_plant(plant_id)
         db.conn.commit()

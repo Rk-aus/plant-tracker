@@ -10,6 +10,11 @@ def parse_date(date_str):
             return None
     return None
 
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif"}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
 
 def get_validated_date(date_str):
     parsed_date = parse_date(date_str)
@@ -19,7 +24,7 @@ def get_validated_date(date_str):
 
 
 def validate_required_image(image):
-    if not image or not image.filename.strip():
+    if not image or not image.filename.strip() or not allowed_file(image.filename):
         return jsonify({"error": "Image file is required."}), 400
     return None, None
 

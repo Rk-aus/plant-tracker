@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { translateToJa } from './utils/translate';
 
 function App() {
   const [plants, setPlants] = useState([]);
@@ -83,22 +84,36 @@ function App() {
     },
   };
 
-  const fetchAndUpdatePlants = async (sort = false) => {
+  const fetchAndUpdatePlants = async (sort = false, lang = 'en') => {
     const url = sort
       ? `${process.env.REACT_APP_API_URL}/plants/sort_by_date`
       : `${process.env.REACT_APP_API_URL}/plants`;
+
     try {
       const res = await fetch(url);
       const data = await res.json();
-      setPlants(data);
+
+      if (lang === 'ja') {
+        const translated = await Promise.all(
+          data.map(async (p) => {
+            if (p.location) {
+              p.location_ja = await translateToJa(p.location);
+            }
+            return p;
+          })
+        );
+        setPlants(translated);
+      } else {
+        setPlants(data);
+      }
     } catch (err) {
       console.error('Error fetching plants:', err);
     }
   };
 
   useEffect(() => {
-    fetchAndUpdatePlants(sortByDate);
-  }, [sortByDate]);
+    fetchAndUpdatePlants(sortByDate, language);
+  }, [sortByDate, language]);
 
   const validateAdd = () => {
     if (!formData.plant_name_en.trim()) {
@@ -168,6 +183,23 @@ function App() {
         false
       );
     }
+    if (!editFormData.botanical_name.trim()) {
+      return (
+        setMessage({ type: 'error', text: 'Botanical name is required.' }) ||
+        false
+      );
+    }
+
+    if (!editFormData.location.trim()) {
+      return (
+        setMessage({ type: 'error', text: 'Location is required.' }) || false
+      );
+    }
+
+    if (!editFormData.image) {
+      return setMessage({ type: 'error', text: 'Image is required.' }) || false;
+    }
+
     if (
       editFormData.plant_date &&
       !/^\d{4}-\d{2}-\d{2}$/.test(editFormData.plant_date)

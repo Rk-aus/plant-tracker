@@ -8,6 +8,9 @@ function App() {
     plant_class_en: '',
     plant_class_ja: '',
     plant_date: '',
+    botanical_name: '',
+    location: '',
+    image: null,
   });
 
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -21,6 +24,9 @@ function App() {
     plant_class_en: '',
     plant_class_ja: '',
     plant_date: '',
+    botanical_name: '',
+    location: '',
+    image: null,
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,6 +124,20 @@ function App() {
         setMessage({ type: 'error', text: 'Japanese class is required.' }) ||
         false
       );
+    }
+    if (!formData.botanical_name.trim()) {
+      return (
+        setMessage({ type: 'error', text: 'Botanical name is required.' }) ||
+        false
+      );
+    }
+    if (!formData.location.trim()) {
+      return (
+        setMessage({ type: 'error', text: 'Location is required.' }) || false
+      );
+    }
+    if (!formData.image) {
+      return setMessage({ type: 'error', text: 'Image is required.' }) || false;
     }
     return true;
   };

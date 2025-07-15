@@ -214,7 +214,7 @@ function App() {
     return true;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateAdd()) {
       return;
@@ -222,37 +222,45 @@ function App() {
 
     setSubmitting(true);
 
-    return fetch(`${process.env.REACT_APP_API_URL}/plants`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.REACT_APP_API_KEY,
-      },
-      body: JSON.stringify(formData),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error('Failed to add plant');
-        }
-        return res.json();
-      })
-      .then(() => {
-        setFormData({
-          /* reset fields */
-        });
-        setMessage({ type: 'success', text: labels[language].addMessage });
-        return fetch(`${process.env.REACT_APP_API_URL}/plants`);
-      })
-      .then((res) => res.json())
-      .then((plants) => {
-        setPlants(plants);
-      })
-      .catch(() => {
-        setMessage({ type: 'error', text: labels[language].addFailedMessage });
-      })
-      .finally(() => {
-        setSubmitting(false);
+    const data = new FormData();
+    Object.entries(formData).forEach(([key, value]) => {
+      if (value) {
+        data.append(key, value);
+      }
+    });
+
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/plants`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.REACT_APP_API_KEY,
+        },
+        body: data,
       });
+
+      if (!res.ok) {
+        throw new Error('Failed to add plant');
+      }
+
+      setFormData({
+        plant_name_en: '',
+        plant_name_ja: '',
+        plant_class_en: '',
+        plant_class_ja: '',
+        botanical_name: '',
+        location: '',
+        plant_date: '',
+        image: null,
+      });
+
+      setMessage({ type: 'success', text: labels[language].addMessage });
+      fetchAndUpdatePlants(sortByDate);
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: labels[language].addFailedMessage });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -283,6 +291,9 @@ function App() {
       plant_date: plant.plant_date
         ? new Date(plant.plant_date).toISOString().split('T')[0]
         : '',
+      botanical_name: plant.botanical_name || '',
+      location: plant.location || '',
+      image: null,
     });
     setIsModalOpen(true);
   };
@@ -291,21 +302,35 @@ function App() {
     if (!validateEdit()) {
       return;
     }
+
+    const form = new FormData();
+    form.append('plant_name_en', editFormData.plant_name_en);
+    form.append('plant_name_ja', editFormData.plant_name_ja);
+    form.append('plant_class_en', editFormData.plant_class_en);
+    form.append('plant_class_ja', editFormData.plant_class_ja);
+    form.append('botanical_name', editFormData.botanical_name);
+    form.append('location', editFormData.location);
+    form.append('image', editFormData.image);
+    if (editFormData.plant_date) {
+      form.append('plant_date', editFormData.plant_date);
+    }
+
     try {
       const res = await fetch(
         `${process.env.REACT_APP_API_URL}/plants/${editFormData.plant_id}`,
         {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json',
             'x-api-key': process.env.REACT_APP_API_KEY,
           },
-          body: JSON.stringify(editFormData),
+          body: form,
         }
       );
+
       if (!res.ok) {
         throw new Error();
       }
+
       await fetchAndUpdatePlants();
       setIsModalOpen(false);
       setMessage({ type: 'success', text: labels[language].updateMessage });

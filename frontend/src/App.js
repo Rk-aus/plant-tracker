@@ -356,17 +356,18 @@ function App() {
           {labels[language].title}
         </h1>
 
-        <div className="flex justify-end mb-4">
+        <nav className="flex justify-end mb-4">
           <button
             onClick={() => {
               setLanguage((prev) => (prev === 'en' ? 'ja' : 'en'));
-              setMessage({ type: '', text: '' }); // Clear the message
+              setMessage({ type: '', text: '' });
             }}
-            className="text-sm text-green-700 underline hover:text-green-900"
+            aria-label={`Switch language to ${language === 'en' ? 'Japanese' : 'English'}`}
+            className="text-sm font-medium text-green-700 underline hover:text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 rounded"
           >
             {language === 'en' ? '🇯🇵 日本語へ' : '🇺🇸 Switch to English'}
           </button>
-        </div>
+        </nav>
 
         {message.text && (
           <div

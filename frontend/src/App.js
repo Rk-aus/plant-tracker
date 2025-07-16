@@ -49,6 +49,9 @@ function App() {
       name: 'Name',
       class: 'Class',
       date: 'Date (optional)',
+      location: 'Location',
+      image: 'Image',
+      botanical_name: 'Botanical Name',
       add: 'Add Plant',
       defaultOrder: 'Default Order',
       newestFirst: 'Newest First',
@@ -72,6 +75,9 @@ function App() {
       name: '名前',
       class: '分類',
       date: '日付（任意）',
+      location: '場所',
+      botanical_name: '学名',
+      image: '画像',
       add: '植物を追加',
       defaultOrder: '追加順',
       newestFirst: '新しい順',
@@ -455,6 +461,60 @@ function App() {
                 setFormData({ ...formData, plant_class_ja: e.target.value })
               }
               className="w-full border border-green-300 rounded p-2"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label
+              htmlFor="location"
+              className="block text-green-700 font-semibold"
+            >
+              {`${labels[language].location}`}
+            </label>
+            <input
+              id="location"
+              type="text"
+              value={formData.location ?? ''}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
+              className="w-full border border-green-300 rounded p-2"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label
+              htmlFor="botanical_name"
+              className="block text-green-700 font-semibold"
+            >
+              {`${labels[language].botanical_name}`}
+            </label>
+            <input
+              id="botanical_name"
+              type="text"
+              value={formData.botanical_name ?? ''}
+              onChange={(e) =>
+                setFormData({ ...formData, botanical_name: e.target.value })
+              }
+              className="w-full border border-green-300 rounded p-2"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label
+              htmlFor="image"
+              className="block text-green-700 font-semibold"
+            >
+              {`${labels[language].image}`}
+            </label>
+            <input
+              id="image"
+              type="file"
+              accept="image/*"
+              onChange={(e) =>
+                setFormData({ ...formData, image: e.target.files[0] })
+              }
+              className="w-full border border-green-300 rounded p-2 bg-white"
               required
             />
           </div>

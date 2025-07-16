@@ -596,10 +596,26 @@ function App() {
                 <div className="italic text-green-600">
                   {plant[`plant_class_${language}`] ?? '(No class)'}
                 </div>
+                <div className="text-sm text-gray-700">
+                  🌐 {plant.botanical_name || '(No botanical name)'}
+                </div>
+                <div className="text-sm text-gray-700">
+                  📍{' '}
+                  {language === 'ja' && plant.location_ja
+                    ? plant.location_ja
+                    : plant.location || '(No location)'}
+                </div>
                 {plant.plant_date && (
                   <div className="text-sm text-gray-500">
                     {new Date(plant.plant_date).toLocaleDateString()}
                   </div>
+                )}
+                {plant.image_url && (
+                  <img
+                    src={plant.image_url}
+                    alt={plant[`plant_name_${language}`]}
+                    className="mt-2 w-32 h-32 object-cover border rounded"
+                  />
                 )}
               </div>
               <div className="flex gap-2">
@@ -689,6 +705,72 @@ function App() {
                   })
                 }
                 className="w-full border border-green-300 rounded p-2"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label
+                htmlFor="botanical_name_edit"
+                className="block text-green-700 font-semibold"
+              >
+                Botanical Name
+              </label>
+              <input
+                id="botanical_name_edit"
+                type="text"
+                value={editFormData.botanical_name ?? ''}
+                onChange={(e) =>
+                  setEditFormData({
+                    ...editFormData,
+                    botanical_name: e.target.value,
+                  })
+                }
+                className="w-full border border-green-300 rounded p-2"
+                required
+              />
+            </div>
+
+            <div className="mb-4">
+              <label
+                htmlFor="location_edit"
+                className="block text-green-700 font-semibold"
+              >
+                Location (English)
+              </label>
+              <input
+                id="location_edit"
+                type="text"
+                value={editFormData.location ?? ''}
+                onChange={(e) =>
+                  setEditFormData({
+                    ...editFormData,
+                    location: e.target.value,
+                  })
+                }
+                className="w-full border border-green-300 rounded p-2"
+                required
+              />
+            </div>
+
+            <div className="mb-4">
+              <label
+                htmlFor="image_url_edit"
+                className="block text-green-700 font-semibold"
+              >
+                Image URL
+              </label>
+              <input
+                id="image_url_edit"
+                type="url"
+                value={editFormData.image_url ?? ''}
+                onChange={(e) =>
+                  setEditFormData({
+                    ...editFormData,
+                    image_url: e.target.value,
+                  })
+                }
+                className="w-full border border-green-300 rounded p-2"
+                required
               />
             </div>
 

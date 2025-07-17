@@ -19,9 +19,10 @@ def create_app():
     app = Flask(__name__)
 
     app.config["ENVIRONMENT"] = env
-    app.config["UPLOAD_FOLDER"] = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "uploads")
-    )
+
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    UPLOAD_FOLDER = os.path.join(PROJECT_ROOT, "uploads")
+    app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
     app.config["DB_NAME"] = os.getenv("DB_NAME")
     app.config["API_KEY"] = os.getenv("API_KEY")  
     app.config["TESTING"] = env == "test"

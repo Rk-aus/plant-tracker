@@ -17,6 +17,7 @@ def upload_image():
     filename = secure_filename(image.filename)
     save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
     image.save(save_path)
+    print(f"Saving image to: {save_path}")
 
     return jsonify({"filename": filename})
 

@@ -5,13 +5,13 @@ function App() {
   const [plants, setPlants] = useState([]);
   const [formData, setFormData] = useState({
     plant_name_en: '',
-    plant_name_ja: '',
     plant_class_en: '',
+    plant_name_ja: '',
     plant_class_ja: '',
     plant_date: '',
     botanical_name: '',
     location: '',
-    image: null,
+    image_path: null,
   });
 
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -21,13 +21,13 @@ function App() {
   const [editFormData, setEditFormData] = useState({
     plant_id: null,
     plant_name_en: '',
-    plant_name_ja: '',
     plant_class_en: '',
+    plant_name_ja: '',
     plant_class_ja: '',
     plant_date: '',
     botanical_name: '',
     location: '',
-    image: null,
+    image_path: null,
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,7 +50,7 @@ function App() {
       class: 'Class',
       date: 'Date (optional)',
       location: 'Location',
-      image: 'Image',
+      image_path: 'Image',
       botanical_name: 'Botanical Name',
       add: 'Add Plant',
       defaultOrder: 'Default Order',
@@ -77,7 +77,7 @@ function App() {
       date: '日付（任意）',
       location: '場所',
       botanical_name: '学名',
-      image: '画像',
+      image_path: '画像',
       add: '植物を追加',
       defaultOrder: '追加順',
       newestFirst: '新しい順',
@@ -98,6 +98,8 @@ function App() {
     try {
       const res = await fetch(url);
       const data = await res.json();
+      // eslint-disable-next-line no-console
+      console.log('📦 Plants from backend:', data);
 
       if (lang === 'ja') {
         const translated = await Promise.all(
@@ -157,7 +159,7 @@ function App() {
         setMessage({ type: 'error', text: 'Location is required.' }) || false
       );
     }
-    if (!formData.image) {
+    if (!formData.image_path) {
       return setMessage({ type: 'error', text: 'Image is required.' }) || false;
     }
     return true;
@@ -202,7 +204,7 @@ function App() {
       );
     }
 
-    if (!editFormData.image) {
+    if (!editFormData.image_path) {
       return setMessage({ type: 'error', text: 'Image is required.' }) || false;
     }
 
@@ -250,13 +252,13 @@ function App() {
 
       setFormData({
         plant_name_en: '',
-        plant_name_ja: '',
         plant_class_en: '',
+        plant_name_ja: '',
         plant_class_ja: '',
         botanical_name: '',
         location: '',
         plant_date: '',
-        image: null,
+        image_path: null,
       });
 
       setMessage({ type: 'success', text: labels[language].addMessage });
@@ -291,15 +293,15 @@ function App() {
     setEditFormData({
       plant_id: plant.plant_id,
       plant_name_en: plant.plant_name_en || '',
-      plant_name_ja: plant.plant_name_ja || '',
       plant_class_en: plant.plant_class_en || '',
+      plant_name_ja: plant.plant_name_ja || '',
       plant_class_ja: plant.plant_class_ja || '',
       plant_date: plant.plant_date
         ? new Date(plant.plant_date).toISOString().split('T')[0]
         : '',
       botanical_name: plant.botanical_name || '',
       location: plant.location || '',
-      image: null,
+      image_path: null,
     });
     setIsModalOpen(true);
   };
@@ -311,12 +313,12 @@ function App() {
 
     const form = new FormData();
     form.append('plant_name_en', editFormData.plant_name_en);
-    form.append('plant_name_ja', editFormData.plant_name_ja);
     form.append('plant_class_en', editFormData.plant_class_en);
+    form.append('plant_name_ja', editFormData.plant_name_ja);
     form.append('plant_class_ja', editFormData.plant_class_ja);
     form.append('botanical_name', editFormData.botanical_name);
     form.append('location', editFormData.location);
-    form.append('image', editFormData.image);
+    form.append('image_path', editFormData.image_path);
     if (editFormData.plant_date) {
       form.append('plant_date', editFormData.plant_date);
     }
@@ -345,15 +347,25 @@ function App() {
     }
   };
 
-  const filteredPlants = plants.filter(
-    (plant) =>
+  const filteredPlants = plants.filter((plant) => {
+    // eslint-disable-next-line no-console
+    console.log('🌱 Full plant object:', plant);
+    // eslint-disable-next-line no-console
+    console.log('🔍 Plant image_path:', plant.image_path);
+    // eslint-disable-next-line no-console
+    console.log(
+      '🌐 Full image_path URL:',
+      `${process.env.REACT_APP_API_URL}/uploads/${plant.image_path}`
+    );
+    return (
       plant[`plant_name_${language}`]
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
       plant[`plant_class_${language}`]
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase())
-  );
+    );
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 to-green-300 p-6">
@@ -505,14 +517,14 @@ function App() {
               htmlFor="image"
               className="block text-green-700 font-semibold"
             >
-              {`${labels[language].image}`}
+              {`${labels[language].image_path}`}
             </label>
             <input
               id="image"
               type="file"
               accept="image/*"
               onChange={(e) =>
-                setFormData({ ...formData, image: e.target.files[0] })
+                setFormData({ ...formData, image_path: e.target.files[0] })
               }
               className="w-full border border-green-300 rounded p-2 bg-white"
               required
@@ -610,9 +622,9 @@ function App() {
                     {new Date(plant.plant_date).toLocaleDateString()}
                   </div>
                 )}
-                {plant.image_url && (
+                {plant.image_path && (
                   <img
-                    src={plant.image_url}
+                    src={`${process.env.REACT_APP_API_URL}/uploads/${plant.image_path}`}
                     alt={plant[`plant_name_${language}`]}
                     className="mt-2 w-32 h-32 object-cover border rounded"
                   />
@@ -713,7 +725,7 @@ function App() {
                 htmlFor="botanical_name_edit"
                 className="block text-green-700 font-semibold"
               >
-                Botanical Name
+                {labels[language].botanical_name}
               </label>
               <input
                 id="botanical_name_edit"
@@ -735,7 +747,7 @@ function App() {
                 htmlFor="location_edit"
                 className="block text-green-700 font-semibold"
               >
-                Location (English)
+                {labels[language].location}
               </label>
               <input
                 id="location_edit"
@@ -757,16 +769,16 @@ function App() {
                 htmlFor="image_url_edit"
                 className="block text-green-700 font-semibold"
               >
-                Image URL
+                {labels[language].image_path}
               </label>
               <input
                 id="image_url_edit"
                 type="url"
-                value={editFormData.image_url ?? ''}
+                value={editFormData.image_path ?? ''}
                 onChange={(e) =>
                   setEditFormData({
                     ...editFormData,
-                    image_url: e.target.value,
+                    image_path: e.target.value,
                   })
                 }
                 className="w-full border border-green-300 rounded p-2"

@@ -18,8 +18,8 @@ class PlantDB:
     def insert_plant(
         self,
         plant_name_en,
-        plant_name_ja,
         plant_class_en,
+        plant_name_ja,
         plant_class_ja,
         image_path,
         botanical_name,

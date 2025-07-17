@@ -47,7 +47,7 @@ function App() {
       deletedMessage: '🗑️ Plant deleted successfully!',
       deleteFailedMessage: '❌ Failed to delete plant.',
       name: 'Name',
-      class: 'Class',
+      class: 'Family',
       date: 'Date (optional)',
       location: 'Location',
       image_path: 'Image',
@@ -57,7 +57,7 @@ function App() {
       newestFirst: 'Newest First',
       edit: 'Edit',
       delete: 'Delete',
-      search: '🔍 Search plants by name or class...',
+      search: '🔍 Search plants by name or family...',
       cancel: 'Cancel',
       save: 'Save',
       editModal: 'Edit Plant',
@@ -584,53 +584,61 @@ function App() {
           </button>
         </div>
 
-        <ul className="space-y-3">
+        <ul className="space-y-4 transition-all duration-300">
           {filteredPlants.map((plant) => (
             <li
               key={plant.plant_id}
-              className="p-4 bg-green-50 border border-green-200 rounded-md shadow-sm flex justify-between items-center"
+              className="flex gap-4 items-center bg-green-50 border border-green-200 rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"
             >
               <div>
-                <div className="font-semibold">
-                  {plant[`plant_name_${language}`] ?? '(No name)'}
+                {plant.image_path ? (
+                  <img
+                    src={`${process.env.REACT_APP_API_URL}/uploads/${plant.image_path}`}
+                    alt={plant[`plant_name_${language}`]}
+                    className="w-32 h-32 object-cover rounded-lg border"
+                  />
+                ) : (
+                  <div className="w-32 h-32 flex items-center justify-center bg-gray-100 text-gray-400 border rounded-lg text-sm">
+                    No image
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1">
+                <div className="font-bold text-lg text-green-800">
+                  {plant[`plant_name_${language}`] ?? '🌱 (No name)'}
                 </div>
-                <div className="italic text-green-600">
-                  {plant[`plant_class_${language}`] ?? '(No class)'}
+                <div className="italic text-green-600 text-sm">
+                  {plant[`plant_class_${language}`] ?? '(No family)'}
                 </div>
-                <div className="text-sm text-gray-700">
-                  🌐 {plant.botanical_name || '(No botanical name)'}
+                <div className="text-sm text-gray-700 mt-1">
+                  🌿 {plant.botanical_name || '(None)'}
                 </div>
                 <div className="text-sm text-gray-700">
                   📍{' '}
                   {language === 'ja' && plant.location_ja
                     ? plant.location_ja
-                    : plant.location || '(No location)'}
+                    : plant.location || '(None)'}
                 </div>
                 {plant.plant_date && (
                   <div className="text-sm text-gray-500">
-                    {new Date(plant.plant_date).toLocaleDateString()}
+                    🗓️ {new Date(plant.plant_date).toLocaleDateString()}
                   </div>
                 )}
-                {plant.image_path && (
-                  <img
-                    src={`${process.env.REACT_APP_API_URL}/uploads/${plant.image_path}`}
-                    alt={plant[`plant_name_${language}`]}
-                    className="mt-2 w-32 h-32 object-cover border rounded"
-                  />
-                )}
               </div>
-              <div className="flex gap-2">
+
+              <div className="flex flex-col gap-2">
                 <button
                   onClick={() => handleEditClick(plant)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm"
                 >
-                  {labels[language].edit}
+                  ✏️ {labels[language].edit}
                 </button>
                 <button
                   onClick={() => handleDelete(plant.plant_id)}
-                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-sm"
                 >
-                  {labels[language].delete}
+                  🗑️ {labels[language].delete}
                 </button>
               </div>
             </li>

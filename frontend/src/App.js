@@ -98,8 +98,6 @@ function App() {
     try {
       const res = await fetch(url);
       const data = await res.json();
-      // eslint-disable-next-line no-console
-      console.log('📦 Plants from backend:', data);
 
       if (lang === 'ja') {
         const translated = await Promise.all(
@@ -348,15 +346,6 @@ function App() {
   };
 
   const filteredPlants = plants.filter((plant) => {
-    // eslint-disable-next-line no-console
-    console.log('🌱 Full plant object:', plant);
-    // eslint-disable-next-line no-console
-    console.log('🔍 Plant image_path:', plant.image_path);
-    // eslint-disable-next-line no-console
-    console.log(
-      '🌐 Full image_path URL:',
-      `${process.env.REACT_APP_API_URL}/uploads/${plant.image_path}`
-    );
     return (
       plant[`plant_name_${language}`]
         ?.toLowerCase()

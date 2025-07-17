@@ -12,6 +12,8 @@
 .DS_Store
 *.log
 **/.env*
+uploads/*
+!uploads/.keep
 
 # Testing artifacts
 .pytest_cache/

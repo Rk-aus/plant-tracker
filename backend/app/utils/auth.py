@@ -1,6 +1,7 @@
 from flask import request, jsonify, current_app
 from functools import wraps
 
+
 def require_api_key(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -13,4 +14,5 @@ def require_api_key(func):
         if req_key != expected_key:
             return jsonify({"error": "Invalid API key"}), 403
         return func(*args, **kwargs)
+
     return wrapper

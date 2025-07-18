@@ -3,6 +3,7 @@ import psycopg2 as pg2
 import pytest
 from dotenv import load_dotenv
 
+
 @pytest.fixture(autouse=True)
 def clear_test_db():
     load_dotenv(dotenv_path="backend/.env.test", override=True)
@@ -18,6 +19,5 @@ def clear_test_db():
     with conn:
         with conn.cursor() as cur:
             cur.execute("TRUNCATE TABLE plants RESTART IDENTITY CASCADE;")
-    
-    conn.close()
 
+    conn.close()

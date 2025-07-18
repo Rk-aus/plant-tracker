@@ -1,6 +1,7 @@
 import piexif
 from PIL import Image
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
 
 
 def get_coordinates(exif_data):
@@ -29,14 +30,43 @@ def get_coordinates(exif_data):
 def get_location_from_image(image_path):
     try:
         image = Image.open(image_path)
-        exif_dict = piexif.load(image.info.get("exif", b""))
-        coords = get_coordinates(exif_dict)
+        exif_bytes = image.info.get("exif", b"")
+        exif_data = piexif.load(exif_bytes)
+        coords = get_coordinates(exif_data)
         if not coords:
             return None
 
         geolocator = Nominatim(user_agent="plant_tracker")
-        location = geolocator.reverse(coords, language="en")
-        return location.address if location else None
+        location = geolocator.reverse(coords, language="en", exactly_one=True)
+        if not location:
+            return None
+
+        address = location.raw.get("address", {})
+        city = (
+            address.get("city")
+            or address.get("town")
+            or address.get("village")
+            or address.get("municipality")
+        )
+        state = (
+            address.get("state")
+            or address.get("region")
+            or address.get("province")
+            or address.get("state_district") 
+            or address.get("county")
+        )
+        country = address.get("country")
+
+        full = location.address
+        if "Tokyo" in full and (not state or "Tokyo" not in state):
+            state = "Tokyo"
+
+        parts = [part for part in [city, state, country] if part]
+        return ", ".join(parts)
+
+    except GeocoderTimedOut:
+        print("📍 Geocoder timed out")
+        return None
     except Exception as e:
         print("📍 EXIF location error:", e)
         return None

@@ -10,10 +10,10 @@ def parse_date(date_str):
             return None
     return None
 
+
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif"}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 def get_validated_date(date_str):

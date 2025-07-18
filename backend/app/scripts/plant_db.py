@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 def load_env(env_name: str) -> None:
     """Load the correct .env file for the given environment."""
-    root = Path(__file__).resolve().parents[2]          # project root
+    root = Path(__file__).resolve().parents[2]  # project root
     env_file = root / (f".env.{env_name}" if env_name != "production" else ".env")
 
     if not env_file.exists():
@@ -49,18 +49,28 @@ def list_rows(cur):
 
 
 def truncate_table(cur):
-    cur.execute(sql.SQL("TRUNCATE TABLE {} RESTART IDENTITY CASCADE;")
-                .format(sql.Identifier("plants")))
+    cur.execute(
+        sql.SQL("TRUNCATE TABLE {} RESTART IDENTITY CASCADE;").format(
+            sql.Identifier("plants")
+        )
+    )
     print("🗑️  Table truncated (rows cleared, id sequence reset).")
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", default=os.getenv("ENV", "development"),
-                        help="Which environment to load (.env.<env>). "
-                             "E.g. 'test', 'development', 'production'")
-    parser.add_argument("--action", choices=["list", "truncate"], default="list",
-                        help="What to do: list rows or truncate the table.")
+    parser.add_argument(
+        "--env",
+        default=os.getenv("ENV", "development"),
+        help="Which environment to load (.env.<env>). "
+        "E.g. 'test', 'development', 'production'",
+    )
+    parser.add_argument(
+        "--action",
+        choices=["list", "truncate"],
+        default="list",
+        help="What to do: list rows or truncate the table.",
+    )
     args = parser.parse_args()
 
     load_env(args.env)
@@ -69,7 +79,7 @@ def main():
     print(f"🌱 DB_NAME = {os.getenv('DB_NAME')}")
 
     conn = get_connection()
-    conn.autocommit = True           
+    conn.autocommit = True
     cur = conn.cursor()
 
     try:

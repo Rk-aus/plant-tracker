@@ -2,6 +2,7 @@ from io import BytesIO
 import pytest
 from app import create_app
 
+
 @pytest.fixture
 def client():
     app = create_app()
@@ -49,6 +50,7 @@ def test_add_plant_missing_image(client):
     assert response.status_code == 400
     assert "image" in response.json["error"].lower()
 
+
 def test_add_plant_missing_name(client):
     data = {
         # Missing "plant_name_en"
@@ -68,6 +70,7 @@ def test_add_plant_missing_name(client):
     assert response.status_code == 400
     assert "plant_name_en" in response.json["error"].lower()
 
+
 def test_add_plant_invalid_image_type(client):
     data = {
         "plant_name_en": "WeirdPlant",
@@ -84,8 +87,9 @@ def test_add_plant_invalid_image_type(client):
         headers={"x-api-key": "skip_2018_0415"},
     )
 
-    assert response.status_code in [400, 415]  
+    assert response.status_code in [400, 415]
     assert "image" in response.json["error"].lower()
+
 
 def test_add_plant_missing_api_key(client):
     data = {
@@ -96,14 +100,11 @@ def test_add_plant_missing_api_key(client):
         "image": (BytesIO(b"image"), "tulip.jpg"),
     }
 
-    response = client.post(
-        "/plants",
-        data=data,
-        content_type="multipart/form-data"
-    )
+    response = client.post("/plants", data=data, content_type="multipart/form-data")
 
     assert response.status_code == 401
     assert "api key" in response.json["error"].lower()
+
 
 def test_add_plant_invalid_api_key(client):
     data = {
@@ -124,6 +125,7 @@ def test_add_plant_invalid_api_key(client):
     assert response.status_code == 403
     assert "api key" in response.json["error"].lower()
 
+
 def test_add_plant_duplicate(client):
     def make_data():
         return {
@@ -134,10 +136,21 @@ def test_add_plant_duplicate(client):
             "image": (BytesIO(b"image"), "mint.jpg"),
         }
 
-    response1 = client.post("/plants", data=make_data(), content_type="multipart/form-data", headers={"x-api-key": "skip_2018_0415"})
-    response2 = client.post("/plants", data=make_data(), content_type="multipart/form-data", headers={"x-api-key": "skip_2018_0415"})
+    response1 = client.post(
+        "/plants",
+        data=make_data(),
+        content_type="multipart/form-data",
+        headers={"x-api-key": "skip_2018_0415"},
+    )
+    response2 = client.post(
+        "/plants",
+        data=make_data(),
+        content_type="multipart/form-data",
+        headers={"x-api-key": "skip_2018_0415"},
+    )
 
     assert response2.status_code == 409
+
 
 def test_add_plant_with_invalid_date_format(client):
     data = {
@@ -159,6 +172,7 @@ def test_add_plant_with_invalid_date_format(client):
     assert response.status_code == 400
     assert "date" in response.json["error"].lower()
 
+
 def test_add_plant_with_large_image(client):
     large_image = BytesIO(b"x" * (1024 * 1024 * 2))  # 2MB dummy image
     data = {
@@ -176,12 +190,13 @@ def test_add_plant_with_large_image(client):
         headers={"x-api-key": "skip_2018_0415"},
     )
 
-    assert response.status_code == 201  
+    assert response.status_code == 201
+
 
 def test_add_plant_with_whitespace_only_fields(client):
     data = {
         "plant_name_en": "   ",  # Just spaces
-        "plant_name_ja": "　",   # Full-width space
+        "plant_name_ja": "　",  # Full-width space
         "plant_class_en": "Rosaceae",
         "plant_class_ja": "バラ科",
         "image": (BytesIO(b"image"), "white.jpg"),
@@ -197,6 +212,7 @@ def test_add_plant_with_whitespace_only_fields(client):
     assert response.status_code == 400
     assert "plant_name_en" in response.json["error"].lower()
 
+
 def test_add_plant_sql_injection_attempt(client):
     data = {
         "plant_name_en": "'); DROP TABLE plants; --",
@@ -207,8 +223,10 @@ def test_add_plant_sql_injection_attempt(client):
     }
 
     response = client.post(
-        "/plants", data=data, content_type="multipart/form-data", headers={"x-api-key": "skip_2018_0415"}
+        "/plants",
+        data=data,
+        content_type="multipart/form-data",
+        headers={"x-api-key": "skip_2018_0415"},
     )
 
-    assert response.status_code in [400, 201]  
-
+    assert response.status_code in [400, 201]

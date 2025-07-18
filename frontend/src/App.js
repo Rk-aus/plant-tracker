@@ -152,11 +152,6 @@ function App() {
         false
       );
     }
-    if (!formData.location.trim()) {
-      return (
-        setMessage({ type: 'error', text: 'Location is required.' }) || false
-      );
-    }
     if (!formData.image_path) {
       return setMessage({ type: 'error', text: 'Image is required.' }) || false;
     }
@@ -193,12 +188,6 @@ function App() {
       return (
         setMessage({ type: 'error', text: 'Botanical name is required.' }) ||
         false
-      );
-    }
-
-    if (!editFormData.location.trim()) {
-      return (
-        setMessage({ type: 'error', text: 'Location is required.' }) || false
       );
     }
 
@@ -480,7 +469,6 @@ function App() {
                 setFormData({ ...formData, location: e.target.value })
               }
               className="w-full border border-green-300 rounded p-2"
-              required
             />
           </div>
           <div className="mb-4">
@@ -763,22 +751,23 @@ function App() {
 
             <div className="mb-4">
               <label
-                htmlFor="image_url_edit"
+                htmlFor="image_edit"
                 className="block text-green-700 font-semibold"
               >
                 {labels[language].image_path}
               </label>
               <input
-                id="image_url_edit"
-                type="url"
-                value={editFormData.image_path ?? ''}
-                onChange={(e) =>
+                id="image_edit"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
                   setEditFormData({
                     ...editFormData,
-                    image_path: e.target.value,
-                  })
-                }
-                className="w-full border border-green-300 rounded p-2"
+                    image_path: file,
+                  });
+                }}
+                className="w-full border border-green-300 rounded p-2 bg-white"
                 required
               />
             </div>

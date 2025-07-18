@@ -23,12 +23,13 @@ def init_db():
 @require_api_key
 def add_plant():
     init_db()
+
     if not request.content_type.startswith("multipart/form-data"):
         return jsonify({"error": "Content-Type must be multipart/form-data"}), 415
 
     data = request.form
 
-    image = request.files.get("image")
+    image = request.files.get("image_path")
     error_response, status_code = validate_required_image(image)
     if error_response:
         return error_response, status_code
@@ -81,6 +82,8 @@ def add_plant():
 @plants_bp.route("/plants/<int:plant_id>", methods=["PUT"])
 @require_api_key
 def update_plant(plant_id):
+    print("Request form:", request.form)
+    print("Request files:", request.files)
     init_db()
 
     if not request.content_type.startswith("multipart/form-data"):
@@ -88,7 +91,7 @@ def update_plant(plant_id):
 
     data = request.form
 
-    image = request.files.get("image")
+    image = request.files.get("image_path")
     error_response, status_code = validate_required_image(image)
     if error_response:
         return error_response, status_code

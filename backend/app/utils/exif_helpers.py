@@ -64,7 +64,7 @@ def get_location_from_image(image_path):
             address.get("state")
             or address.get("region")
             or address.get("province")
-            or address.get("state_district") 
+            or address.get("state_district")
             or address.get("county")
         )
         country = address.get("country")
@@ -78,8 +78,8 @@ def get_location_from_image(image_path):
         if state:
             state = (
                 state.replace(" Prefecture", "")
-                    .replace(" Metropolis", "")
-                    .replace(" City", "")  
+                .replace(" Metropolis", "")
+                .replace(" City", "")
             )
 
         parts = [part for part in [city, state, country] if part]

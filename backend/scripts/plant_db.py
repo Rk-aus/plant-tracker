@@ -16,14 +16,14 @@ from dotenv import load_dotenv
 
 def load_env(env_name: str) -> None:
     """Load the correct .env file for the given environment."""
-    root = Path(__file__).resolve().parents[2]  
-    env_file = root / (f".env.{env_name}" if env_name != "production" else ".env")
+    backend_dir = Path(__file__).resolve().parents[1]
+    env_file = backend_dir / (f".env.{env_name}" if env_name != "production" else ".env")
 
     if not env_file.exists():
         sys.exit(f"❌  {env_file} not found")
 
     load_dotenv(dotenv_path=env_file, override=True)
-    print(f"📦 Loaded {env_file.relative_to(root)}")
+    print(f"📦 Loaded {env_file.relative_to(backend_dir)}")
 
 
 def get_connection():
@@ -57,6 +57,14 @@ def truncate_table(cur):
     print("🗑️  Table truncated (rows cleared, id sequence reset).")
 
 
+def run_migration(cur):
+    with open(
+        Path(__file__).parent / "migrations" / "001_create_locations_families.sql"
+    ) as f:
+        cur.execute(f.read())
+    print("📐 Migration complete: locations, families, plant_names updated.")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -66,10 +74,10 @@ def main():
         "E.g. 'test', 'development', 'production'",
     )
     parser.add_argument(
-        "--action",
-        choices=["list", "truncate"],
-        default="list",
-        help="What to do: list rows or truncate the table.",
+    "--action",
+    choices=["list", "truncate", "migrate"],
+    default="list",
+    help="What to do: list rows, truncate table, or migrate schema.",
     )
     args = parser.parse_args()
 
@@ -85,12 +93,14 @@ def main():
     try:
         if args.action == "list":
             list_rows(cur)
-        else:
+        elif args.action == "truncate":
             truncate_table(cur)
+        elif args.action == "migrate":
+            run_migration(cur)
     finally:
-        cur.close()
-        conn.close()
-        print("✅ Done.")
+            cur.close()
+            conn.close()
+    print("✅ Done.")
 
 
 if __name__ == "__main__":

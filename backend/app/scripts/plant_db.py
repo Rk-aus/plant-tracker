@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 def load_env(env_name: str) -> None:
     """Load the correct .env file for the given environment."""
-    root = Path(__file__).resolve().parents[2]  # project root
+    root = Path(__file__).resolve().parents[2]  
     env_file = root / (f".env.{env_name}" if env_name != "production" else ".env")
 
     if not env_file.exists():

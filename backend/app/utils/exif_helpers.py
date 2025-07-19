@@ -42,6 +42,18 @@ def get_location_from_image(image_path):
             return None
 
         address = location.raw.get("address", {})
+
+        print("➡️ city:", address.get("city"))
+        print("➡️ town:", address.get("town"))
+        print("➡️ village:", address.get("village"))
+        print("➡️ municipality:", address.get("municipality"))
+
+        print("➡️ state:", address.get("state"))
+        print("➡️ region:", address.get("region"))
+        print("➡️ province:", address.get("province"))
+        print("➡️ state_district:", address.get("state_district"))
+        print("➡️ county:", address.get("county"))
+
         city = (
             address.get("city")
             or address.get("town")
@@ -58,8 +70,17 @@ def get_location_from_image(image_path):
         country = address.get("country")
 
         full = location.address
+        print("📍 Full location address:", full)
         if "Tokyo" in full and (not state or "Tokyo" not in state):
             state = "Tokyo"
+        if "Vancouver" in full and (not city or "Vancouver" not in city):
+            city = "Vancouver"
+        if state:
+            state = (
+                state.replace(" Prefecture", "")
+                    .replace(" Metropolis", "")
+                    .replace(" City", "")  
+            )
 
         parts = [part for part in [city, state, country] if part]
         return ", ".join(parts)

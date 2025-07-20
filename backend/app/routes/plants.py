@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, make_response, url_for
 from app.utils.auth import require_api_key
-from app.utils.validation import (
+from app.utils.validators import (
     get_validated_date,
     validate_required_image,
     validate_required_fields,
@@ -9,7 +9,6 @@ from app.utils.image_helpers import save_image_and_get_location
 
 plants_bp = Blueprint("plants", __name__)
 db = None
-
 
 def init_db():
     global db

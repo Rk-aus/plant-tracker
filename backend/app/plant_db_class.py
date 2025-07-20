@@ -1,7 +1,12 @@
 import os
 import psycopg2 as pg2
 from datetime import date
-
+from app.utils.validators import (
+    validate_positive_int,
+    validate_non_empty_str,
+    validate_date_or_none,
+    handle_unique_violation,
+)
 
 class PlantDB:
     def __init__(self):
@@ -17,98 +22,92 @@ class PlantDB:
 
     def insert_plant(
         self,
-        plant_name_en,
-        plant_class_en,
-        plant_name_ja,
-        plant_class_ja,
+        plant_name_id,
+        family_id,
+        location_id,
         image_path,
         botanical_name,
-        location,
         plant_date=None,
     ):
-        if not isinstance(plant_name_en, str) or not plant_name_en.strip():
-            raise ValueError("English plant name must be a non-empty string.")
-        if not isinstance(plant_class_en, str) or not plant_class_en.strip():
-            raise ValueError("English plant class must be a non-empty string.")
-        if plant_date is not None and not isinstance(plant_date, date):
-            raise ValueError("plant_date must be a datetime.date object or None.")
+        validate_positive_int(plant_name_id, "plant_name_id")
+        validate_positive_int(family_id, "family_id")
+        validate_positive_int(location_id, "location_id")
+        validate_non_empty_str(image_path, "image_path")
+        validate_non_empty_str(botanical_name, "botanical_name")
+        validate_date_or_none(plant_date, "plant_date")
 
-        self.cur.execute(
-            """
-            INSERT INTO plants (
-                plant_name_en,
-                plant_class_en,
-                plant_name_ja,
-                plant_class_ja,
-                image_path,
-                botanical_name,
-                location,
-                plant_date
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-        """,
-            (
-                plant_name_en,
-                plant_class_en,
-                plant_name_ja,
-                plant_class_ja,
-                image_path,
-                botanical_name,
-                location,
-                plant_date if plant_date else date.today(),
-            ),
-        )
+        try:
+            self.cur.execute(
+                """
+                INSERT INTO plants (
+                    plant_name_id,
+                    family_id,
+                    location_id,
+                    image_path,
+                    botanical_name,
+                    plant_date
+                ) VALUES (%s, %s, %s, %s, %s, %s);
+                """,
+                (
+                    plant_name_id,
+                    family_id,
+                    location_id,
+                    image_path,
+                    botanical_name,
+                    plant_date or date.today(),
+                ),
+            )
+        except pg2.errors.UniqueViolation as e:
+            handle_unique_violation(e)
+
+    def update_plant(
+        self,
+        plant_id,
+        plant_name_id,
+        family_id,
+        location_id,
+        image_path,
+        botanical_name,
+        plant_date=None,
+    ):
+        validate_positive_int(plant_name_id, "plant_name_id")
+        validate_positive_int(family_id, "family_id")
+        validate_positive_int(location_id, "location_id")
+        validate_non_empty_str(image_path, "image_path")
+        validate_non_empty_str(botanical_name, "botanical_name")
+        validate_date_or_none(plant_date, "plant_date")
+
+        try: 
+            self.cur.execute(
+                """
+                UPDATE plants
+                SET
+                    plant_name_id = %s,
+                    family_id = %s,
+                    location_id = %s,
+                    image_path = %s,
+                    botanical_name = %s,
+                    plant_date = %s
+                WHERE plant_id = %s;
+            """,
+                (
+                    plant_name_id,
+                    family_id,
+                    location_id,
+                    image_path,
+                    botanical_name,
+                    plant_date or date.today(),
+                    plant_id,
+                ),
+            )
+        except pg2.errors.UniqueViolation as e:
+            handle_unique_violation(e)
 
     def delete_plant(self, plant_id):
         if not isinstance(plant_id, int):
             raise ValueError("plant_id must be an integer")
 
         self.cur.execute("DELETE FROM plants WHERE plant_id = %s;", (plant_id,))
-
-    def update_plant(
-        self,
-        plant_id,
-        plant_name_en,
-        plant_class_en,
-        plant_name_ja,
-        plant_class_ja,
-        image_path,
-        botanical_name,
-        location,
-        plant_date=None,
-    ):
-        if not isinstance(plant_name_en, str) or not plant_name_en.strip():
-            raise ValueError("English name must be a non-empty string.")
-        if not isinstance(plant_class_en, str) or not plant_class_en.strip():
-            raise ValueError("English class must be a non-empty string.")
-        if not isinstance(plant_id, int):
-            raise ValueError("plant_id must be an integer.")
-
-        self.cur.execute(
-            """
-            UPDATE plants
-            SET
-                plant_name_en = %s,
-                plant_class_en = %s,
-                plant_name_ja = %s,
-                plant_class_ja = %s,
-                image_path = %s,
-                botanical_name = %s,
-                location = %s,
-                plant_date = %s
-            WHERE plant_id = %s;
-        """,
-            (
-                plant_name_en,
-                plant_class_en,
-                plant_name_ja,
-                plant_class_ja,
-                image_path,
-                botanical_name,
-                location,
-                plant_date if plant_date else date.today(),
-                plant_id,
-            ),
-        )
 
     def get_all_plants(self):
         self.cur.execute(

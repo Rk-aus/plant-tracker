@@ -1,5 +1,6 @@
 import os
 import psycopg2 as pg2
+from psycopg2.extras import RealDictCursor
 from datetime import date
 from app.utils.validators import (
     validate_positive_int,
@@ -7,10 +8,10 @@ from app.utils.validators import (
     validate_date_or_none,
     handle_unique_violation,
 )
+from app.exceptions import UniquePlantConstraintError
 
 class PlantDB:
     def __init__(self):
-        print("🔒 DB_PASSWORD =", os.getenv("DB_PASSWORD"))
         self.conn = pg2.connect(
             database=os.getenv("DB_NAME"),
             user=os.getenv("DB_USER"),
@@ -18,7 +19,6 @@ class PlantDB:
             host=os.getenv("DB_HOST"),
             port=os.getenv("DB_PORT"),
         )
-        self.cur = self.conn.cursor()
 
     def insert_plant(
         self,
@@ -37,26 +37,27 @@ class PlantDB:
         validate_date_or_none(plant_date, "plant_date")
 
         try:
-            self.cur.execute(
-                """
-                INSERT INTO plants (
-                    plant_name_id,
-                    family_id,
-                    location_id,
-                    image_path,
-                    botanical_name,
-                    plant_date
-                ) VALUES (%s, %s, %s, %s, %s, %s);
-                """,
-                (
-                    plant_name_id,
-                    family_id,
-                    location_id,
-                    image_path,
-                    botanical_name,
-                    plant_date or date.today(),
-                ),
-            )
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO plants (
+                        plant_name_id,
+                        family_id,
+                        location_id,
+                        image_path,
+                        botanical_name,
+                        plant_date
+                    ) VALUES (%s, %s, %s, %s, %s, %s);
+                    """,
+                    (
+                        plant_name_id,
+                        family_id,
+                        location_id,
+                        image_path,
+                        botanical_name,
+                        plant_date or date.today(),
+                    ),
+                )
         except pg2.errors.UniqueViolation as e:
             handle_unique_violation(e)
 
@@ -70,6 +71,7 @@ class PlantDB:
         botanical_name,
         plant_date=None,
     ):
+        validate_positive_int(plant_id, "plant_id")  
         validate_positive_int(plant_name_id, "plant_name_id")
         validate_positive_int(family_id, "family_id")
         validate_positive_int(location_id, "location_id")
@@ -77,29 +79,30 @@ class PlantDB:
         validate_non_empty_str(botanical_name, "botanical_name")
         validate_date_or_none(plant_date, "plant_date")
 
-        try: 
-            self.cur.execute(
-                """
-                UPDATE plants
-                SET
-                    plant_name_id = %s,
-                    family_id = %s,
-                    location_id = %s,
-                    image_path = %s,
-                    botanical_name = %s,
-                    plant_date = %s
-                WHERE plant_id = %s;
-            """,
-                (
-                    plant_name_id,
-                    family_id,
-                    location_id,
-                    image_path,
-                    botanical_name,
-                    plant_date or date.today(),
-                    plant_id,
-                ),
-            )
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE plants
+                    SET
+                        plant_name_id = %s,
+                        family_id = %s,
+                        location_id = %s,
+                        image_path = %s,
+                        botanical_name = %s,
+                        plant_date = %s
+                    WHERE plant_id = %s;
+                    """,
+                    (
+                        plant_name_id,
+                        family_id,
+                        location_id,
+                        image_path,
+                        botanical_name,
+                        plant_date or date.today(),
+                        plant_id,
+                    ),
+                )
         except pg2.errors.UniqueViolation as e:
             handle_unique_violation(e)
 
@@ -114,13 +117,11 @@ class PlantDB:
             """
             SELECT
                 plant_id,
-                plant_name_en,
-                plant_class_en,
-                plant_name_ja,
-                plant_class_ja,
+                plant_name_id,
+                family_id,
+                location_id,
                 image_path,
                 botanical_name,
-                location,
                 plant_date
             FROM plants;
         """
@@ -132,13 +133,11 @@ class PlantDB:
             """
             SELECT
                 plant_id,
-                plant_name_en,
-                plant_class_en,
-                plant_name_ja,
-                plant_class_ja,
+                plant_name_id,
+                family_id,
+                location_id,
                 image_path,
                 botanical_name,
-                location,
                 plant_date
             FROM plants
             WHERE plant_id = %s;
@@ -152,13 +151,11 @@ class PlantDB:
             """
             SELECT
                 plant_id,
-                plant_name_en,
-                plant_class_en,
-                plant_name_ja,
-                plant_class_ja,
+                plant_name_id,
+                family_id,
+                location_id,
                 image_path,
                 botanical_name,
-                location,
                 plant_date
             FROM plants
             ORDER BY plant_date DESC;
@@ -166,30 +163,95 @@ class PlantDB:
         )
         return self.cur.fetchall()
 
-    def search_plant_by_name(self, name, lang="en"):
-        if lang == "ja":
-            column = "plant_name_ja"
-        else:
-            column = "plant_name_en"
+    def search_plant_by_name(self, name_query: str, lang: str = "en") -> list[dict]:
+        """Search for plants by name in the specified language ('en' or 'ja')."""
+        assert lang in ("en", "ja"), "Language must be 'en' or 'ja'"
+        column = "plant_name_en" if lang == "en" else "plant_name_ja"
 
-        self.cur.execute(
-            f"""
-            SELECT
-                plant_id,
-                plant_name_en,
-                plant_class_en,
-                plant_name_ja,
-                plant_class_ja,
-                image_path,
-                botanical_name,
-                location,
-                plant_date
-            FROM plants
-            WHERE {column} ILIKE %s;
-        """,
-            (f"%{name}%",),
-        )
-        return self.cur.fetchall()
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    plants.id,
+                    plant_names.plant_name_en,
+                    plant_names.plant_name_ja,
+                    families.family_name_en,
+                    families.family_name_ja,
+                    plants.plant_class_en,
+                    plants.plant_class_ja,
+                    locations.location_name_en,
+                    locations.location_name_ja,
+                    plants.image_path,
+                    plants.plant_date
+                FROM plants
+                JOIN plant_names ON plants.plant_name_id = plant_names.id
+                JOIN families ON plants.family_id = families.id
+                JOIN locations ON plants.location_id = locations.id
+                WHERE {column} ILIKE %s
+                """,
+                (f"%{name_query}%",)
+            )
+            return cur.fetchall()
+    
+    def search_plant_by_family(self, family_query: str, lang: str = "en") -> list[dict]:
+        """Search for plants by family name in the specified language."""
+        assert lang in ("en", "ja"), "Language must be 'en' or 'ja'"
+        column = "family_name_en" if lang == "en" else "family_name_ja"
+
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    plants.id,
+                    plant_names.plant_name_en,
+                    plant_names.plant_name_ja,
+                    families.family_name_en,
+                    families.family_name_ja,
+                    plants.plant_class_en,
+                    plants.plant_class_ja,
+                    locations.location_name_en,
+                    locations.location_name_ja,
+                    plants.image_path
+                FROM plants
+                JOIN plant_names ON plants.plant_name_id = plant_names.id
+                JOIN families ON plants.family_id = families.id
+                JOIN locations ON plants.location_id = locations.id
+                WHERE {column} ILIKE %s
+                """,
+                (f"%{family_query}%",)
+            )
+            return cur.fetchall()
+        
+    def search_plant_by_location(self, location_query: str, lang: str = "en") -> list[dict]:
+        """Search for plants by location name in the specified language."""
+        assert lang in ("en", "ja"), "Language must be 'en' or 'ja'"
+        column = "location_name_en" if lang == "en" else "location_name_ja"
+
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    plants.id,
+                    plant_names.plant_name_en,
+                    plant_names.plant_name_ja,
+                    families.family_name_en,
+                    families.family_name_ja,
+                    plants.plant_class_en,
+                    plants.plant_class_ja,
+                    locations.location_name_en,
+                    locations.location_name_ja,
+                    plants.image_path
+                FROM plants
+                JOIN plant_names ON plants.plant_name_id = plant_names.id
+                JOIN families ON plants.family_id = families.id
+                JOIN locations ON plants.location_id = locations.id
+                WHERE {column} ILIKE %s
+                """,
+                (f"%{location_query}%",)
+            )
+            return cur.fetchall()
+
+
 
     def close(self):
         self.cur.close()

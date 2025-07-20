@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from flask import jsonify
+from app.exceptions import UniquePlantConstraintError, UniqueBotanicalNameError, UniqueImagePathError
 
 def validate_positive_int(value, name):
     if not isinstance(value, int) or value <= 0:
@@ -12,15 +13,16 @@ def validate_non_empty_str(value, name):
 def validate_date_or_none(value, name="date"):
     if value is not None and not isinstance(value, date):
         raise ValueError(f"{name} must be a datetime.date object or None.")
-    
+
 def handle_unique_violation(e):
-    msg = str(e)
-    if 'unique_botanical_name' in msg:
-        raise ValueError("Botanical name already exists.")
-    elif 'unique_image_path' in msg:
-        raise ValueError("Image path already exists.")
+    error_msg = str(e)
+
+    if "unique_botanical_name" in error_msg:
+        raise UniqueBotanicalNameError("Botanical name already exists.") from e
+    elif "unique_image_path" in error_msg:
+        raise UniqueImagePathError("Image path already exists.") from e
     else:
-        raise e
+        raise UniquePlantConstraintError("Unique constraint violation.") from e
 
 
 def parse_date(date_str):

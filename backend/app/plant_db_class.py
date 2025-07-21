@@ -8,10 +8,13 @@ from app.utils.validators import (
     validate_date_or_none,
     handle_unique_violation,
 )
-from app.exceptions import UniquePlantConstraintError
+from app.exceptions import PlantNotFoundError
 
 class PlantDB:
     def __init__(self):
+        """
+        Initialize the PlantDB instance by establishing a database connection.
+        """
         self.conn = pg2.connect(
             database=os.getenv("DB_NAME"),
             user=os.getenv("DB_USER"),
@@ -22,13 +25,28 @@ class PlantDB:
 
     def insert_plant(
         self,
-        plant_name_id,
-        family_id,
-        location_id,
-        image_path,
-        botanical_name,
-        plant_date=None,
-    ):
+        plant_name_id: int,
+        family_id: int,
+        location_id: int,
+        image_path: str,
+        botanical_name: str,
+        plant_date: date | None = None,
+    ) -> None:
+        """
+        Insert a new plant record into the database.
+
+        Args:
+            plant_name_id (int): Foreign key to plant_names table.
+            family_id (int): Foreign key to families table.
+            location_id (int): Foreign key to locations table.
+            image_path (str): Path to the plant image.
+            botanical_name (str): Botanical name of the plant.
+            plant_date (date | None, optional): Date associated with the plant. Defaults to today if None.
+
+        Raises:
+            ValueError: If any input validation fails.
+            UniqueConstraintViolation: If unique constraints (like botanical_name or image_path) are violated.
+        """
         validate_positive_int(plant_name_id, "plant_name_id")
         validate_positive_int(family_id, "family_id")
         validate_positive_int(location_id, "location_id")
@@ -63,14 +81,30 @@ class PlantDB:
 
     def update_plant(
         self,
-        plant_id,
-        plant_name_id,
-        family_id,
-        location_id,
-        image_path,
-        botanical_name,
-        plant_date=None,
-    ):
+        plant_id: int,
+        plant_name_id: int,
+        family_id: int,
+        location_id: int,
+        image_path: str,
+        botanical_name: str,
+        plant_date: date | None = None,
+    ) -> None:
+        """
+        Update a plant record with new data.
+
+        Args:
+            plant_id (int): Unique identifier of the plant to update.
+            plant_name_id (int): Foreign key to plant_names table.
+            family_id (int): Foreign key to families table.
+            location_id (int): Foreign key to locations table.
+            image_path (str): Path to the plant image.
+            botanical_name (str): Botanical name of the plant.
+            plant_date (date | None, optional): Date associated with the plant. Defaults to None.
+
+        Raises:
+            PlantNotFoundError: If no plant exists with the specified plant_id.
+            ValueError: If any input validation fails.
+        """
         validate_positive_int(plant_id, "plant_id")  
         validate_positive_int(plant_name_id, "plant_name_id")
         validate_positive_int(family_id, "family_id")
@@ -106,31 +140,97 @@ class PlantDB:
         except pg2.errors.UniqueViolation as e:
             handle_unique_violation(e)
 
-    def delete_plant(self, plant_id):
+    def delete_plant(self, plant_id: int) -> None:
+        """
+        Delete a plant record by its ID.
+
+        Args:
+            plant_id (int): The unique identifier of the plant to delete.
+
+        Raises:
+            PlantNotFoundError: If no plant exists with the specified plant_id.
+            ValueError: If plant_id is not an integer.
+        """
+        validate_positive_int(plant_id, "plant_id")
+
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM plants WHERE plant_id = %s;", (plant_id,))
+            if cur.rowcount == 0:
+                raise PlantNotFoundError(f"No plant found with plant_id {plant_id}")
+
+    def get_all_plants(self) -> list[dict]:
+        """
+        Retrieve all plant records without any specific order.
+
+        Returns:
+            list[dict]: List of all plant records.
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    plant_id,
+                    plant_name_id,
+                    family_id,
+                    location_id,
+                    image_path,
+                    botanical_name,
+                    plant_date
+                FROM plants;
+                """
+            )
+            return cur.fetchall()
+
+    def get_plant_details(self, plant_id: int) -> dict:
+        """
+        Retrieve detailed information about a single plant by its ID.
+
+        Args:
+            plant_id (int): The unique identifier of the plant.
+
+        Returns:
+            dict: Plant record corresponding to the given plant_id.
+
+        Raises:
+            PlantNotFoundError: If no plant exists with the specified plant_id.
+            ValueError: If plant_id is not an integer.
+        """
         if not isinstance(plant_id, int):
             raise ValueError("plant_id must be an integer")
 
-        self.cur.execute("DELETE FROM plants WHERE plant_id = %s;", (plant_id,))
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    plant_id,
+                    plant_name_id,
+                    family_id,
+                    location_id,
+                    image_path,
+                    botanical_name,
+                    plant_date
+                FROM plants
+                WHERE plant_id = %s;
+                """,
+                (plant_id,),
+            )
+        result = cur.fetchone()
+        if result is None:
+            raise PlantNotFoundError(f"No plant found with id {plant_id}")
+        return result
 
-    def get_all_plants(self):
-        self.cur.execute(
-            """
-            SELECT
-                plant_id,
-                plant_name_id,
-                family_id,
-                location_id,
-                image_path,
-                botanical_name,
-                plant_date
-            FROM plants;
+    def list_plants_by_date(self, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
         """
-        )
-        return self.cur.fetchall()
+        Retrieve plants filtered by an optional date range, ordered by plant_date descending.
 
-    def get_plant_details(self, plant_id):
-        self.cur.execute(
-            """
+        Args:
+            start_date (date | None, optional): Start date for filtering plants (inclusive). Defaults to None.
+            end_date (date | None, optional): End date for filtering plants (inclusive). Defaults to None.
+
+        Returns:
+            list[dict]: List of plant records within the date range, sorted newest first.
+        """
+        query = """
             SELECT
                 plant_id,
                 plant_name_id,
@@ -140,31 +240,37 @@ class PlantDB:
                 botanical_name,
                 plant_date
             FROM plants
-            WHERE plant_id = %s;
-        """,
-            (plant_id,),
-        )
-        return self.cur.fetchone()
-
-    def list_plants_by_date(self):
-        self.cur.execute(
-            """
-            SELECT
-                plant_id,
-                plant_name_id,
-                family_id,
-                location_id,
-                image_path,
-                botanical_name,
-                plant_date
-            FROM plants
-            ORDER BY plant_date DESC;
+            WHERE 1=1
         """
-        )
-        return self.cur.fetchall()
+        params = []
+
+        if start_date:
+            query += " AND plant_date >= %s"
+            params.append(start_date)
+        if end_date:
+            query += " AND plant_date <= %s"
+            params.append(end_date)
+
+        query += " ORDER BY plant_date DESC"
+
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, params)
+            return cur.fetchall()
 
     def search_plant_by_name(self, name_query: str, lang: str = "en") -> list[dict]:
-        """Search for plants by name in the specified language ('en' or 'ja')."""
+        """
+        Search for plants by name in the specified language ('en' or 'ja').
+
+        Args:
+            name_query (str): The name or partial name to search for.
+            lang (str): Language code, either 'en' or 'ja'. Defaults to 'en'.
+
+        Returns:
+            list[dict]: List of plants matching the search query.
+
+        Raises:
+            AssertionError: If `lang` is not 'en' or 'ja'.
+        """
         assert lang in ("en", "ja"), "Language must be 'en' or 'ja'"
         column = "plant_name_en" if lang == "en" else "plant_name_ja"
 
@@ -194,7 +300,19 @@ class PlantDB:
             return cur.fetchall()
     
     def search_plant_by_family(self, family_query: str, lang: str = "en") -> list[dict]:
-        """Search for plants by family name in the specified language."""
+        """
+        Search for plants by family name in the specified language ('en' or 'ja').
+
+        Args:
+            family_query (str): The family name or partial family name to search for.
+            lang (str, optional): Language code, either 'en' or 'ja'. Defaults to 'en'.
+
+        Returns:
+            list[dict]: A list of plant records matching the family name query.
+
+        Raises:
+            AssertionError: If `lang` is not 'en' or 'ja'.
+        """
         assert lang in ("en", "ja"), "Language must be 'en' or 'ja'"
         column = "family_name_en" if lang == "en" else "family_name_ja"
 
@@ -223,7 +341,19 @@ class PlantDB:
             return cur.fetchall()
         
     def search_plant_by_location(self, location_query: str, lang: str = "en") -> list[dict]:
-        """Search for plants by location name in the specified language."""
+        """
+        Search for plants by location name in the specified language ('en' or 'ja').
+
+        Args:
+            location_query (str): The location name or partial location name to search for.
+            lang (str, optional): Language code, either 'en' or 'ja'. Defaults to 'en'.
+
+        Returns:
+            list[dict]: A list of plant records matching the location name query.
+
+        Raises:
+            AssertionError: If `lang` is not 'en' or 'ja'.
+        """
         assert lang in ("en", "ja"), "Language must be 'en' or 'ja'"
         column = "location_name_en" if lang == "en" else "location_name_ja"
 
@@ -250,9 +380,3 @@ class PlantDB:
                 (f"%{location_query}%",)
             )
             return cur.fetchall()
-
-
-
-    def close(self):
-        self.cur.close()
-        self.conn.close()

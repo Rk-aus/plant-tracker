@@ -8,12 +8,18 @@ from app.utils.validators import (
     validate_date_or_none,
     handle_unique_violation,
 )
-from app.exceptions import PlantNotFoundError
+from app.exceptions import (
+    PlantNotFoundError,
+    LocationNotFoundError,
+    FamilyNotFoundError,
+    InvalidLanguageError,
+)
 
 class PlantDB:
     def __init__(self):
         """
-        Initialize the PlantDB instance by establishing a database connection.
+        Initializes the PlantDB instance and establishes a connection to the PostgreSQL database
+        using credentials from environment variables.
         """
         self.conn = pg2.connect(
             database=os.getenv("DB_NAME"),
@@ -22,6 +28,18 @@ class PlantDB:
             host=os.getenv("DB_HOST"),
             port=os.getenv("DB_PORT"),
         )
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.conn.close()
+
+    def close(self):
+        """
+        Close the database connection manually.
+        """
+        self.conn.close()
 
     def insert_plant(
         self,
@@ -45,7 +63,9 @@ class PlantDB:
 
         Raises:
             ValueError: If any input validation fails.
-            UniqueConstraintViolation: If unique constraints (like botanical_name or image_path) are violated.
+            UniqueBotanicalNameError: If the botanical name already exists.
+            UniqueImagePathError: If the image path already exists.
+                These are subclasses of UniquePlantConstraintError.
         """
         validate_positive_int(plant_name_id, "plant_name_id")
         validate_positive_int(family_id, "family_id")
@@ -103,6 +123,9 @@ class PlantDB:
 
         Raises:
             PlantNotFoundError: If no plant exists with the specified plant_id.
+            UniqueBotanicalNameError: If the botanical name already exists.
+            UniqueImagePathError: If the image path already exists.
+                These are subclasses of UniquePlantConstraintError.
             ValueError: If any input validation fails.
         """
         validate_positive_int(plant_id, "plant_id")  
@@ -137,6 +160,8 @@ class PlantDB:
                         plant_id,
                     ),
                 )
+            if cur.rowcount == 0:
+                raise PlantNotFoundError(plant_id, f"No plant found with ID {plant_id}.")
         except pg2.errors.UniqueViolation as e:
             handle_unique_violation(e)
 
@@ -156,7 +181,7 @@ class PlantDB:
         with self.conn.cursor() as cur:
             cur.execute("DELETE FROM plants WHERE plant_id = %s;", (plant_id,))
             if cur.rowcount == 0:
-                raise PlantNotFoundError(f"No plant found with plant_id {plant_id}")
+                raise PlantNotFoundError(plant_id, f"No plant found with plant_id {plant_id}")
 
     def get_all_plants(self) -> list[dict]:
         """
@@ -216,7 +241,7 @@ class PlantDB:
             )
         result = cur.fetchone()
         if result is None:
-            raise PlantNotFoundError(f"No plant found with id {plant_id}")
+            raise PlantNotFoundError(plant_id, f"No plant found with id {plant_id}")
         return result
 
     def list_plants_by_date(self, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
@@ -269,10 +294,12 @@ class PlantDB:
             list[dict]: List of plants matching the search query.
 
         Raises:
-            AssertionError: If `lang` is not 'en' or 'ja'.
+            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
         """
-        assert lang in ("en", "ja"), "Language must be 'en' or 'ja'"
-        column = "plant_name_en" if lang == "en" else "plant_name_ja"
+        columns = {"en": "plant_name_en", "ja": "plant_name_ja"}
+        if lang not in columns:
+            raise InvalidLanguageError(lang)
+        column = columns[lang]
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
@@ -311,10 +338,12 @@ class PlantDB:
             list[dict]: A list of plant records matching the family name query.
 
         Raises:
-            AssertionError: If `lang` is not 'en' or 'ja'.
+            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
         """
-        assert lang in ("en", "ja"), "Language must be 'en' or 'ja'"
-        column = "family_name_en" if lang == "en" else "family_name_ja"
+        columns = {"en": "plant_name_en", "ja": "plant_name_ja"}
+        if lang not in columns:
+            raise InvalidLanguageError(lang)
+        column = columns[lang]
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
@@ -352,10 +381,12 @@ class PlantDB:
             list[dict]: A list of plant records matching the location name query.
 
         Raises:
-            AssertionError: If `lang` is not 'en' or 'ja'.
+            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
         """
-        assert lang in ("en", "ja"), "Language must be 'en' or 'ja'"
-        column = "location_name_en" if lang == "en" else "location_name_ja"
+        columns = {"en": "plant_name_en", "ja": "plant_name_ja"}
+        if lang not in columns:
+            raise InvalidLanguageError(lang)
+        column = columns[lang]
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
@@ -380,3 +411,100 @@ class PlantDB:
                 (f"%{location_query}%",)
             )
             return cur.fetchall()
+        
+    def get_plant_id_by_name(self, plant_name: str, lang: str = "en") -> int:
+        """
+        Retrieve the plant_id from the plant_names table based on the name and language.
+
+        Args:
+            plant_name (str): The plant name in either English or Japanese.
+            lang (str): 'en' or 'ja'. Defaults to 'en'.
+
+        Returns:
+            int: Corresponding plant_id.
+
+        Raises:
+            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
+            PlantNotFoundError: If the plant name is not found.
+        """
+        columns = {"en": "plant_name_en", "ja": "plant_name_ja"}
+        if lang not in columns:
+            raise InvalidLanguageError(lang)
+        column = columns[lang]
+
+        with self.conn.cursor() as cur:
+            cur.execute(
+                f"SELECT plant_id FROM plant_names WHERE {column} = %s;",
+                (plant_name,)
+            )
+            result = cur.fetchone()
+            if result is None:    
+                raise PlantNotFoundError(plant_name, f"Plant name '{plant_name}' not found in {lang}.")
+            return result[0]
+
+    def get_family_id_by_name(self, family_name: str, lang: str = "en") -> int:
+        """
+        Retrieve the family_id from the families table based on the name and language.
+
+        Args:
+            family_name (str): The family name in English or Japanese.
+            lang (str): 'en' or 'ja'. Defaults to 'en'.
+
+        Returns:
+            int: Corresponding family_id.
+
+        Raises:
+            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
+            FamilyNotFoundError: If the family name is not found.
+        """
+        columns = {"en": "family_name_en", "ja": "family_name_ja"}
+        if lang not in columns:
+            raise InvalidLanguageError(lang)
+        column = columns[lang]
+
+        with self.conn.cursor() as cur:
+            cur.execute(
+                f"SELECT family_id FROM families WHERE {column} = %s;",
+                (family_name,)
+            )
+            result = cur.fetchone()
+            if result is None:
+                raise FamilyNotFoundError(family_name, f"Family name '{family_name}' not found in {lang}.")
+            return result[0]
+
+    def get_location_id_by_name(self, location_name: str, lang: str = "en") -> int:
+        """
+        Retrieve the location_id from the locations table based on the name and language.
+
+        Args:
+            location_name (str): The location name in English or Japanese.
+            lang (str): 'en' or 'ja'. Defaults to 'en'.
+
+        Returns:
+            int: Corresponding location_id.
+
+        Raises:
+            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
+            LocationNotFoundError: If the location name is not found.
+        """
+        columns = {"en": "location_name_en", "ja": "location_name_ja"}
+        if lang not in columns:
+            raise InvalidLanguageError(lang)
+        column = columns[lang]
+
+        with self.conn.cursor() as cur:
+            cur.execute(
+                f"SELECT location_id FROM locations WHERE {column} = %s;",
+                (location_name,)
+            )
+            result = cur.fetchone()
+            if result is None:
+                raise LocationNotFoundError(location_name, f"Location name '{location_name}' not found in {lang}.")
+            return result[0]
+
+
+
+    
+
+
+

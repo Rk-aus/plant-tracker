@@ -4,15 +4,15 @@ from app.exceptions import UniquePlantConstraintError, UniqueBotanicalNameError,
 
 def validate_positive_int(value, name):
     if not isinstance(value, int) or value <= 0:
-        raise ValueError(f"{name} must be a positive integer.")
+        raise TypeError(f"{name} must be a positive integer. Got {value!r}.")
 
 def validate_non_empty_str(value, name):
     if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{name} must be a non-empty string.")
+        raise TypeError(f"{name} must be a non-empty string. Got {value!r}.")
     
 def validate_date_or_none(value, name="date"):
     if value is not None and not isinstance(value, date):
-        raise ValueError(f"{name} must be a datetime.date object or None.")
+        raise TypeError(f"{name} must be a datetime.date object or None. Got {value!r}.")
 
 def handle_unique_violation(e):
     error_msg = str(e)

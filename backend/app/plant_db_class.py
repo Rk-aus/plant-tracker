@@ -60,7 +60,7 @@ class PlantDB:
             plant_date (date | None, optional): Date associated with the plant. Defaults to today if None.
 
         Raises:
-            ValueError: If any input validation fails.
+            TypeError: If any input is of an incorrect type or format.
             UniqueBotanicalNameError: If the botanical name already exists.
             UniqueImagePathError: If the image path already exists.
                 These are subclasses of UniquePlantConstraintError.
@@ -120,11 +120,11 @@ class PlantDB:
             plant_date (date | None, optional): Date associated with the plant. Defaults to None.
 
         Raises:
+            TypeError: If any input is of an incorrect type or format.
             PlantNotFoundError: If no plant exists with the specified plant_id.
             UniqueBotanicalNameError: If the botanical name already exists.
             UniqueImagePathError: If the image path already exists.
                 These are subclasses of UniquePlantConstraintError.
-            ValueError: If any input validation fails.
         """
         validate_positive_int(plant_id, "plant_id")  
         validate_positive_int(plant_name_id, "plant_name_id")
@@ -171,8 +171,8 @@ class PlantDB:
             plant_id (int): The unique identifier of the plant to delete.
 
         Raises:
+            TypeError: If plant_id is not a positive integer.
             PlantNotFoundError: If no plant exists with the specified plant_id.
-            ValueError: If plant_id is not an integer.
         """
         validate_positive_int(plant_id, "plant_id")
 
@@ -215,8 +215,8 @@ class PlantDB:
             dict: Plant record corresponding to the given plant_id.
 
         Raises:
+            TypeError: If plant_id is not a positive integer.
             PlantNotFoundError: If no plant exists with the specified plant_id.
-            ValueError: If plant_id is not an integer.
         """
         if not isinstance(plant_id, int):
             raise ValueError("plant_id must be an integer")
@@ -355,8 +355,8 @@ class PlantDB:
             int: The corresponding plant_id, whether existing or newly created.
 
         Raises:
+            TypeError: If plant names are empty or invalid.
             UniqueViolation: If a uniqueness constraint is violated during insertion.
-            ValueError: If plant names are empty or invalid.
         """
         validate_non_empty_str(plant_name_en, "plant_name_en")
         validate_non_empty_str(plant_name_ja, "plant_name_ja")
@@ -399,8 +399,8 @@ class PlantDB:
             int: Corresponding family_id. Creates a new entry if not found.
 
         Raises:
+            TypeError: If family names are empty or invalid.
             UniqueViolation: If a uniqueness constraint is violated during insertion.
-            ValueError: If family names are empty or invalid.
         """
         validate_non_empty_str(family_name_en, "family_name_en")
         validate_non_empty_str(family_name_ja, "family_name_ja")
@@ -444,8 +444,8 @@ class PlantDB:
             int: Corresponding location_id. Creates a new entry if not found.
 
         Raises:
+            TypeError: If location names are empty or invalid.
             UniqueViolation: If a uniqueness constraint is violated during insertion.
-            ValueError: If location names are empty or invalid.
         """
         validate_non_empty_str(location_name_en, "location_name_en")
         validate_non_empty_str(location_name_ja, "location_name_ja")

@@ -15,15 +15,17 @@ class TestPlantDB(unittest.TestCase):
         self.db.close()
 
     def insert_dummy_plant(self, name="SamplePlant", plant_date=None):
+        plant_id = self.db.get_or_create_plant(name, "サンプル")
+        family_id = self.db.get_or_create_family("Sampleaceae", "サンプル科")
+        location_id = self.db.get_or_create_location("TestTown", "テスト町")
+
         return self.db.insert_plant(
-            name,
-            "サンプル",
-            "Sampleaceae",
-            "サンプル科",
-            "sample.jpg",
-            "Plantus exampleus",
-            "TestTown",
-            plant_date or date.today(),
+            plant_id=plant_id,
+            family_id=family_id,
+            location_id=location_id,
+            image_filename="sample.jpg",
+            botanical_name="Plantus exampleus",
+            plant_date=plant_date or date.today(),
         )
 
     def test_insert_plant(self):

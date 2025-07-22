@@ -10,8 +10,6 @@ from app.utils.validators import (
 )
 from app.exceptions import (
     PlantNotFoundError,
-    LocationNotFoundError,
-    FamilyNotFoundError,
     InvalidLanguageError,
 )
 
@@ -282,38 +280,56 @@ class PlantDB:
             cur.execute(query, params)
             return cur.fetchall()
 
-    def search_plant_by_name(self, name_query: str, lang: str = "en") -> list[dict]:
+    def search_plants(self, query: str, search_field: str, lang: str = "en") -> list[dict]:
         """
-        Search for plants by name in the specified language ('en' or 'ja').
+        Search for plants by name, family, or location in the specified language.
+
+        This function performs a case-insensitive partial match (`ILIKE`) on the chosen
+        search field using the given query string. Results include plant name, family,
+        botanical name, location, image path, and plant date.
 
         Args:
-            name_query (str): The name or partial name to search for.
-            lang (str): Language code, either 'en' or 'ja'. Defaults to 'en'.
+            query (str): The search keyword (partial or full).
+            search_field (str): The field to search by. Must be one of:
+                'name' (plant name),
+                'family' (family name),
+                'location' (location name).
+            lang (str, optional): Language of the search field and results, either
+                'en' (English) or 'ja' (Japanese). Defaults to 'en'.
 
         Returns:
-            list[dict]: List of plants matching the search query.
+            list[dict]: A list of dictionaries, each representing a plant record
+            that matches the search query.
 
         Raises:
-            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
+            ValueError: If an invalid search field is provided.
+            InvalidLanguageError: If an unsupported language code is given.
         """
-        columns = {"en": "plant_name_en", "ja": "plant_name_ja"}
-        if lang not in columns:
+        valid_fields = {
+            "name": {"en": "plant_name_en", "ja": "plant_name_ja"},
+            "family": {"en": "family_name_en", "ja": "family_name_ja"},
+            "location": {"en": "location_name_en", "ja": "location_name_ja"},
+        }
+
+        if search_field not in valid_fields:
+            raise ValueError("Invalid search field.")
+        if lang not in ("en", "ja"):
             raise InvalidLanguageError(lang)
-        column = columns[lang]
+
+        column = valid_fields[search_field][lang]
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 f"""
                 SELECT
-                    plants.id,
+                    plants.plant_id,
                     plant_names.plant_name_en,
                     plant_names.plant_name_ja,
                     families.family_name_en,
                     families.family_name_ja,
-                    plants.plant_class_en,
-                    plants.plant_class_ja,
                     locations.location_name_en,
                     locations.location_name_ja,
+                    plants.botanical_name,
                     plants.image_path,
                     plants.plant_date
                 FROM plants
@@ -322,185 +338,142 @@ class PlantDB:
                 JOIN locations ON plants.location_id = locations.id
                 WHERE {column} ILIKE %s
                 """,
-                (f"%{name_query}%",)
-            )
-            return cur.fetchall()
-    
-    def search_plant_by_family(self, family_query: str, lang: str = "en") -> list[dict]:
-        """
-        Search for plants by family name in the specified language ('en' or 'ja').
-
-        Args:
-            family_query (str): The family name or partial family name to search for.
-            lang (str, optional): Language code, either 'en' or 'ja'. Defaults to 'en'.
-
-        Returns:
-            list[dict]: A list of plant records matching the family name query.
-
-        Raises:
-            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
-        """
-        columns = {"en": "plant_name_en", "ja": "plant_name_ja"}
-        if lang not in columns:
-            raise InvalidLanguageError(lang)
-        column = columns[lang]
-
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                f"""
-                SELECT
-                    plants.id,
-                    plant_names.plant_name_en,
-                    plant_names.plant_name_ja,
-                    families.family_name_en,
-                    families.family_name_ja,
-                    plants.plant_class_en,
-                    plants.plant_class_ja,
-                    locations.location_name_en,
-                    locations.location_name_ja,
-                    plants.image_path
-                FROM plants
-                JOIN plant_names ON plants.plant_name_id = plant_names.id
-                JOIN families ON plants.family_id = families.id
-                JOIN locations ON plants.location_id = locations.id
-                WHERE {column} ILIKE %s
-                """,
-                (f"%{family_query}%",)
+                (f"%{query}%",)
             )
             return cur.fetchall()
         
-    def search_plant_by_location(self, location_query: str, lang: str = "en") -> list[dict]:
+    def get_or_create_plant(self, plant_name_en: str,  plant_name_ja: str) -> int:
         """
-        Search for plants by location name in the specified language ('en' or 'ja').
+        Retrieve the plant_id from the plant_names table if it exists,
+        or insert a new entry and return its plant_id.
 
         Args:
-            location_query (str): The location name or partial location name to search for.
-            lang (str, optional): Language code, either 'en' or 'ja'. Defaults to 'en'.
+            plant_name_en (str): The English name of the plant.
+            plant_name_ja (str): The Japanese name of the plant.
 
         Returns:
-            list[dict]: A list of plant records matching the location name query.
+            int: The corresponding plant_id, whether existing or newly created.
 
         Raises:
-            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
+            UniqueViolation: If a uniqueness constraint is violated during insertion.
+            ValueError: If plant names are empty or invalid.
         """
-        columns = {"en": "plant_name_en", "ja": "plant_name_ja"}
-        if lang not in columns:
-            raise InvalidLanguageError(lang)
-        column = columns[lang]
+        validate_non_empty_str(plant_name_en, "plant_name_en")
+        validate_non_empty_str(plant_name_ja, "plant_name_ja")
 
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+        with self.conn.cursor() as cur:
             cur.execute(
-                f"""
-                SELECT
-                    plants.id,
-                    plant_names.plant_name_en,
-                    plant_names.plant_name_ja,
-                    families.family_name_en,
-                    families.family_name_ja,
-                    plants.plant_class_en,
-                    plants.plant_class_ja,
-                    locations.location_name_en,
-                    locations.location_name_ja,
-                    plants.image_path
-                FROM plants
-                JOIN plant_names ON plants.plant_name_id = plant_names.id
-                JOIN families ON plants.family_id = families.id
-                JOIN locations ON plants.location_id = locations.id
-                WHERE {column} ILIKE %s
+                """
+                SELECT plant_id FROM plant_names 
+                WHERE plant_name_en = %s AND plant_name_ja = %s;
                 """,
-                (f"%{location_query}%",)
+                (plant_name_en, plant_name_ja)
             )
-            return cur.fetchall()
-        
-    def get_plant_id_by_name(self, plant_name: str, lang: str = "en") -> int:
+            result = cur.fetchone()
+            if result:
+                return result[0]
+            
+            try: 
+                cur.execute(
+                    """
+                    INSERT INTO plant_names (plant_name_en, plant_name_ja)
+                    VALUES (%s, %s)
+                    RETURNING plant_id;
+                    """,
+                    (plant_name_en, plant_name_ja)
+                )
+            except pg2.errors.UniqueViolation as e:
+                handle_unique_violation(e)
+            return cur.fetchone()[0]
+
+    def get_or_create_family(self, family_name_en: str, family_name_ja: str) -> int:
         """
-        Retrieve the plant_id from the plant_names table based on the name and language.
+        Retrieve the family_id from the families table if it exists,
+        or insert a new entry and return its family_id.
 
         Args:
-            plant_name (str): The plant name in either English or Japanese.
-            lang (str): 'en' or 'ja'. Defaults to 'en'.
+            family_name_en (str): Family name in English.
+            family_name_ja (str): Family name in Japanese.
 
         Returns:
-            int: Corresponding plant_id.
+            int: Corresponding family_id. Creates a new entry if not found.
 
         Raises:
-            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
-            PlantNotFoundError: If the plant name is not found.
+            UniqueViolation: If a uniqueness constraint is violated during insertion.
+            ValueError: If family names are empty or invalid.
         """
-        columns = {"en": "plant_name_en", "ja": "plant_name_ja"}
-        if lang not in columns:
-            raise InvalidLanguageError(lang)
-        column = columns[lang]
+        validate_non_empty_str(family_name_en, "family_name_en")
+        validate_non_empty_str(family_name_ja, "family_name_ja")
 
         with self.conn.cursor() as cur:
             cur.execute(
-                f"SELECT plant_id FROM plant_names WHERE {column} = %s;",
-                (plant_name,)
+                """
+                SELECT family_id FROM families
+                WHERE family_name_en = %s OR family_name_ja = %s;
+                """,
+                (family_name_en, family_name_ja)
             )
             result = cur.fetchone()
-            if result is None:    
-                raise PlantNotFoundError(plant_name, f"Plant name '{plant_name}' not found in {lang}.")
-            return result[0]
+            if result:
+                return result[0]
+            
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO families (family_name_en, family_name_ja)
+                    VALUES (%s, %s)
+                    RETURNING family_id;
+                    """,
+                    (family_name_en, family_name_ja)
+                )
+            except pg2.errors.UniqueViolation as e:
+                handle_unique_violation(e)
+            return cur.fetchone()[0]
+            
 
-    def get_family_id_by_name(self, family_name: str, lang: str = "en") -> int:
+    def get_or_create_location(self, location_name_en: str, location_name_ja: str) -> int:
         """
-        Retrieve the family_id from the families table based on the name and language.
+        Retrieve the location_id from the locations table if it exists,
+        or insert a new entry and return its location_id.
 
         Args:
-            family_name (str): The family name in English or Japanese.
-            lang (str): 'en' or 'ja'. Defaults to 'en'.
+            location_name_en (str): Location name in English.
+            location_name_ja (str): Location name in Japanese.
 
         Returns:
-            int: Corresponding family_id.
+            int: Corresponding location_id. Creates a new entry if not found.
 
         Raises:
-            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
-            FamilyNotFoundError: If the family name is not found.
+            UniqueViolation: If a uniqueness constraint is violated during insertion.
+            ValueError: If location names are empty or invalid.
         """
-        columns = {"en": "family_name_en", "ja": "family_name_ja"}
-        if lang not in columns:
-            raise InvalidLanguageError(lang)
-        column = columns[lang]
+        validate_non_empty_str(location_name_en, "location_name_en")
+        validate_non_empty_str(location_name_ja, "location_name_ja")
 
         with self.conn.cursor() as cur:
             cur.execute(
-                f"SELECT family_id FROM families WHERE {column} = %s;",
-                (family_name,)
+                """
+                SELECT location_id FROM locations
+                WHERE location_name_en = %s OR location_name_ja = %s;
+                """,
+                (location_name_en, location_name_ja)
             )
             result = cur.fetchone()
-            if result is None:
-                raise FamilyNotFoundError(family_name, f"Family name '{family_name}' not found in {lang}.")
-            return result[0]
-
-    def get_location_id_by_name(self, location_name: str, lang: str = "en") -> int:
-        """
-        Retrieve the location_id from the locations table based on the name and language.
-
-        Args:
-            location_name (str): The location name in English or Japanese.
-            lang (str): 'en' or 'ja'. Defaults to 'en'.
-
-        Returns:
-            int: Corresponding location_id.
-
-        Raises:
-            InvalidLanguageError: If `lang` is not 'en' or 'ja'.
-            LocationNotFoundError: If the location name is not found.
-        """
-        columns = {"en": "location_name_en", "ja": "location_name_ja"}
-        if lang not in columns:
-            raise InvalidLanguageError(lang)
-        column = columns[lang]
-
-        with self.conn.cursor() as cur:
-            cur.execute(
-                f"SELECT location_id FROM locations WHERE {column} = %s;",
-                (location_name,)
-            )
-            result = cur.fetchone()
-            if result is None:
-                raise LocationNotFoundError(location_name, f"Location name '{location_name}' not found in {lang}.")
-            return result[0]
+            if result:
+                return result[0]
+            
+            try: 
+                cur.execute(
+                    """
+                    INSERT INTO locations (location_name_en, location_name_ja)
+                    VALUES (%s, %s)
+                    RETURNING location_id;
+                    """,
+                    (location_name_en, location_name_ja)
+                )
+            except pg2.errors.UniqueViolation as e:
+                handle_unique_violation(e)
+            return cur.fetchone()[0]
 
 
 

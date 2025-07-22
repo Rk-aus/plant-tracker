@@ -42,35 +42,6 @@ class PlantNotFoundError(NotFoundError):
         default_msg = f"Plant with identifier '{identifier}' not found."
         super().__init__(message or default_msg, status_code)
 
-class FamilyNotFoundError(NotFoundError):
-    """
-    Raised when a plant family could not be found by the provided identifier.
-
-    Attributes:
-        identifier (str): The family name or unique key used in the lookup.
-        message (str): Optional custom error message.
-        status_code (int): HTTP status code (default: 404).
-    """
-    def __init__(self, identifier, message=None, status_code=404):
-        self.identifier = identifier
-        default_msg = f"Family with identifier '{identifier}' not found."
-        super().__init__(message or default_msg, status_code)
-
-class LocationNotFoundError(NotFoundError):
-    """
-    Raised when a location could not be found by the provided identifier.
-
-    Attributes:
-        identifier (str): The location name or unique key used in the lookup.
-        message (str): Optional custom error message.
-        status_code (int): HTTP status code (default: 404).
-    """
-    def __init__(self, identifier, message=None, status_code=404):
-        self.identifier = identifier
-        default_msg = f"Location with identifier '{identifier}' not found."
-        super().__init__(message or default_msg, status_code)
-
-
 class InvalidLanguageError(ValueError):
     """
     Raised when an unsupported language code is provided.

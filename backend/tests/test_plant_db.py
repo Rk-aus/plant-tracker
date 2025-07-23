@@ -2,6 +2,9 @@ import unittest
 import uuid
 from datetime import date
 from app.plant_db_class import PlantDB
+from app.exceptions import (
+    PlantNotFoundError,
+)
 
 
 class TestPlantDB(unittest.TestCase):
@@ -126,6 +129,103 @@ class TestPlantDB(unittest.TestCase):
         self.assertGreater(len(results), 0, "No results returned for plant search")
         self.assertEqual(results[0]['plant_date'], custom_date, "Plant date does not match the custom date inserted")
 
+    def test_update_plant_success(self):
+        """Test that update_plant correctly updates all fields for an existing plant."""
+        plant_name_id_old = self.db.get_or_create_plant("OldName", "古い")
+        plant_name_id_new = self.db.get_or_create_plant("NewName", "新しい")
+        family_id_old = self.db.get_or_create_family("OldFamily", "古い科")
+        family_id_new = self.db.get_or_create_family("NewFamily", "新しい科")
+        location_id_old = self.db.get_or_create_location("OldCity", "旧市")
+        location_id_new = self.db.get_or_create_location("NewCity", "新市")
+
+        self.db.insert_plant(
+            plant_name_id=plant_name_id_old,
+            family_id=family_id_old,
+            location_id=location_id_old,
+            image_path="old.jpg",
+            botanical_name="OldBotanical",
+            plant_date=date(2022, 5, 1),
+        )
+        plant = self.db.search_plants("OldName", "name")[0]
+        plant_id = plant["plant_id"]
+
+        self.db.update_plant(
+            plant_id=plant_id,
+            plant_name_id=plant_name_id_new,
+            family_id=family_id_new,
+            location_id=location_id_new,
+            image_path="new.jpg",
+            botanical_name="NewBotanical",
+            plant_date=date(2023, 6, 1),
+        )
+
+        updated = self.db.search_plants("NewName", "name")[0]
+        self.assertEqual(updated["plant_id"], plant_id, "Plant ID mismatch")
+        self.assertEqual(updated["plant_name_en"], "NewName", "English name was not updated correctly")
+        self.assertEqual(updated["plant_name_ja"], "新しい", "Japanese name was not updated correctly")
+        self.assertEqual(updated["family_name_en"], "NewFamily", "English family name mismatch")
+        self.assertEqual(updated["family_name_ja"], "新しい科", "Japanese family name mismatch")
+        self.assertEqual(updated["location_name_en"], "NewCity", "English location name mismatch")
+        self.assertEqual(updated["location_name_ja"], "新市", "Japanese location name mismatch")
+        self.assertEqual(updated["image_path"], "new.jpg", "Image path was not updated correctly")
+        self.assertEqual(updated["botanical_name"], "NewBotanical", "Botanical name mismatch")
+        self.assertEqual(updated["plant_date"], "2023-06-01", "Plant date mismatch")
+
+    def test_update_nonexistent_id(self):
+        """Test that update_plant raises PlantNotFoundError when the plant_id does not exist."""
+        plant_name_id = self.db.get_or_create_plant("Ghost", "ゴースト")
+        family_id = self.db.get_or_create_family("Phantomaceae", "幻科")
+        location_id = self.db.get_or_create_location("Void", "虚無")
+
+        with self.assertRaises(PlantNotFoundError, msg="Expected exception not raised when updating nonexistent plant ID"):
+            self.db.update_plant(
+                plant_id=99999,
+                plant_name_id=plant_name_id,
+                family_id=family_id,
+                location_id=location_id,
+                image_path="ghost.jpg",
+                botanical_name="Ghostus",
+                plant_date=date(2022, 10, 31),
+            )
+
+    def test_update_invalid_id_type(self):
+        """Test that update_plant raises TypeError when given a non-integer plant_id."""
+        plant_name_id = self.db.get_or_create_plant("NewName", "新しい")
+        family_id = self.db.get_or_create_family("NewFamily", "新しい科")
+        location_id = self.db.get_or_create_location("NewCity", "新市")
+
+        with self.assertRaises(TypeError, msg="Expected TypeError for non-integer plant_id"):
+            self.db.update_plant(
+                "not-an-id",      
+                plant_name_id,
+                family_id,
+                location_id,
+                image_path="new.jpg",
+                botanical_name="NewBotanical",
+                plant_date=date(2023, 6, 1),
+            )
+
+    def test_update_with_invalid_plant_name_id(self):
+        """
+        Test that update_plant raises a TypeError when given an invalid plant_name_id (non-integer).
+            
+        This ensures the method enforces correct data types for foreign key references.
+        """
+        self.insert_dummy_plant("TestName")
+        plants = self.db.search_plants("TestName", "name")
+        plant_id = plants[0]["plant_id"]
+        
+        with self.assertRaises(TypeError, msg="Expected TypeError for invalid plant_name_id"):
+            self.db.update_plant(
+                plant_id,
+                "",  
+                1,
+                1,
+                "img.jpg",
+                "Botanical",
+                date.today(),
+            )
+
     def test_delete_existing_plant(self):
         """
         Test deleting an existing plant removes it from the database.
@@ -182,89 +282,6 @@ class TestPlantDB(unittest.TestCase):
         self.assertIn("Daisy", remaining_names, "Daisy should still exist after deleting Lily")
         self.assertNotIn("Lily", remaining_names, "Lily should no longer exist after deletion")
 
-
-
-
-    def test_update_plant_success(self):
-        self.insert_dummy_plant("OldName")
-        plants = self.db.search_plant_by_name("OldName")
-        plant_id = plants[0][0]
-        self.db.update_plant(
-            plant_id,
-            "NewName",
-            "新しい",
-            "NewClass",
-            "新しい科",
-            "new.jpg",
-            "NewBotanical",
-            "NewCity",
-            date(2023, 6, 1),
-        )
-        updated = self.db.search_plant_by_name("NewName")
-        self.assertTrue(any("NewName" in row for row in updated))
-
-    def test_update_nonexistent_id(self):
-        try:
-            self.db.update_plant(
-                99999,
-                "Ghost",
-                "ゴースト",
-                "Phantomaceae",
-                "幻科",
-                "ghost.jpg",
-                "Ghostus",
-                "Void",
-            )
-        except Exception:
-            self.fail("update_plant raised an exception unexpectedly")
-
-    def test_update_invalid_id_type(self):
-        with self.assertRaises(Exception):
-            self.db.update_plant(
-                "not-an-id",
-                "Name",
-                "名",
-                "Class",
-                "科",
-                "img.jpg",
-                "Botanical",
-                "Place",
-            )
-
-    def test_update_empty_name(self):
-        self.insert_dummy_plant("TestName")
-        plants = self.db.search_plant_by_name("TestName")
-        plant_id = plants[0][0]
-        with self.assertRaises(Exception):
-            self.db.update_plant(
-                plant_id, "", "", "Class", "科", "img.jpg", "Botanical", "Place"
-            )
-
-    def test_get_all_plants_returns_list(self):
-        results = self.db.get_all_plants()
-        self.assertIsInstance(results, list)
-
-    def test_get_all_plants_after_insert(self):
-        self.insert_dummy_plant("Maple")
-        plants = self.db.get_all_plants()
-        self.assertTrue(any("Maple" in row for row in plants))
-
-    def test_get_all_plants_empty(self):
-        plants = self.db.get_all_plants()
-        self.assertEqual(plants, [])
-
-    def test_get_plant_details_existing(self):
-        self.insert_dummy_plant("Daisy")
-        plant = self.db.search_plant_by_name("Daisy")[0]
-        plant_id = plant[0]
-        details = self.db.get_plant_details(plant_id)
-        self.assertEqual(details[1], "Daisy")
-        self.assertEqual(details[2], "Sampleaceae")
-
-    def test_get_plant_details_nonexistent(self):
-        result = self.db.get_plant_details(9999)
-        self.assertIsNone(result)
-
     def test_list_plants_by_date_empty(self):
         results = self.db.list_plants_by_date()
         self.assertEqual(results, [])
@@ -281,6 +298,68 @@ class TestPlantDB(unittest.TestCase):
         results = self.db.list_plants_by_date()
         names = [row[1] for row in results]
         self.assertEqual(names, ["Rose", "Mint", "Aloe"])
+
+    def test_get_all_plants_returns_list(self):
+        """
+        Test that get_all_plants returns a list.
+
+        Ensures the method consistently returns a list, even if the database is empty.
+        """
+        results = self.db.get_all_plants()
+        self.assertIsInstance(results, list, msg="Expected get_all_plants to return a list")
+
+    def test_get_all_plants_empty(self):
+        """
+        Test that get_all_plants returns an empty list when no plants exist.
+
+        Ensures that the database returns an empty result set when the plants
+        table is empty, confirming correct behavior on initial state.
+        """
+        plants = self.db.get_all_plants()
+        self.assertEqual(plants, [], msg="Expected empty list when no plants are present")
+
+    def test_get_all_plants_after_insert(self):
+        """
+        Test that get_all_plants returns the newly inserted plant.
+
+        Verifies that after inserting a plant, it appears in the results
+        returned by get_all_plants.
+        """
+        self.insert_dummy_plant("Maple")
+        plants = self.db.get_all_plants()
+
+        self.assertTrue(
+            any("Maple" in (row.get("plant_name_en") or "") for row in plants),
+            msg="Expected 'Maple' to appear in get_all_plants results"
+        )
+
+    def test_get_plant_details_existing(self):
+        """
+        Test that get_plant_details returns correct details for an existing plant.
+
+        Inserts a dummy plant named "Daisy", retrieves its ID via search_plants, 
+        and asserts that get_plant_details returns accurate English names 
+        for plant, family, and location.
+        """
+        self.insert_dummy_plant("Daisy")
+        plant = self.db.search_plants("Daisy", "name")[0]
+        plant_id = plant["plant_id"]
+
+        details = self.db.get_plant_details(plant_id)
+
+        self.assertEqual(details["plant_name_en"], "Daisy", msg="Expected plant name to be 'Daisy'")
+        self.assertEqual(details["family_name_en"], "Sampleaceae", msg="Expected family name to be 'Sampleaceae'")
+        self.assertEqual(details["location_name_en"], "TestTown", msg="Expected location name to be 'TestTown'")
+
+    def test_get_plant_details_nonexistent(self):
+        """
+        Test that get_plant_details raises PlantNotFoundError when called with a non-existent plant_id.
+
+        Attempts to retrieve details for a plant ID that does not exist and verifies
+        that the appropriate exception is raised.
+        """
+        with self.assertRaises(PlantNotFoundError, msg="Expected PlantNotFoundError for non-existent plant_id"):
+            self.db.get_plant_details(9999)
 
     def test_search_exact_match(self):
         self.insert_dummy_plant("Tulip")
@@ -313,6 +392,13 @@ class TestPlantDB(unittest.TestCase):
         self.insert_dummy_plant("Rose")
         results = self.db.search_plant_by_name("")
         self.assertGreaterEqual(len(results), 1)
+
+    def test_get_or_create_plant_with_empty_name(self):
+        with self.assertRaises(ValueError):
+            self.db.get_or_create_plant("", "サンプル")  
+        
+        with self.assertRaises(ValueError):
+            self.db.get_or_create_plant("Sample", "")  
 
 
 if __name__ == "__main__":

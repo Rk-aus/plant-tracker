@@ -204,44 +204,6 @@ class PlantDB:
             )
             return cur.fetchall()
 
-    def get_plant_details(self, plant_id: int) -> dict:
-        """
-        Retrieve detailed information about a single plant by its ID.
-
-        Args:
-            plant_id (int): The unique identifier of the plant.
-
-        Returns:
-            dict: Plant record corresponding to the given plant_id.
-
-        Raises:
-            TypeError: If plant_id is not a positive integer.
-            PlantNotFoundError: If no plant exists with the specified plant_id.
-        """
-        if not isinstance(plant_id, int):
-            raise ValueError("plant_id must be an integer")
-
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT
-                    plant_id,
-                    plant_name_id,
-                    family_id,
-                    location_id,
-                    image_path,
-                    botanical_name,
-                    plant_date
-                FROM plants
-                WHERE plant_id = %s;
-                """,
-                (plant_id,),
-            )
-        result = cur.fetchone()
-        if result is None:
-            raise PlantNotFoundError(plant_id, f"No plant found with id {plant_id}")
-        return result
-
     def list_plants_by_date(self, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
         """
         Retrieve plants filtered by an optional date range, ordered by plant_date descending.
@@ -279,27 +241,91 @@ class PlantDB:
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query, params)
             return cur.fetchall()
+        
+    def get_plant_details(self, plant_id: int) -> dict:
+        """
+        Retrieve detailed information about a single plant by its ID, including multilingual
+        name, family, and location information.
+
+        Args:
+            plant_id (int): The unique identifier of the plant.
+
+        Returns:
+            dict: A dictionary containing detailed plant information:
+                - plant_id (int)
+                - plant_name_en (str)
+                - plant_name_ja (str)
+                - family_name_en (str)
+                - family_name_ja (str)
+                - location_name_en (str)
+                - location_name_ja (str)
+                - botanical_name (str)
+                - image_path (str)
+                - plant_date (date)
+
+        Raises:
+            TypeError: If plant_id is not a positive integer.
+            PlantNotFoundError: If no plant exists with the specified plant_id.
+        """
+        validate_positive_int(plant_id, "plant_id")
+
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    plants.plant_id,
+                    plant_names.plant_name_en,
+                    plant_names.plant_name_ja,
+                    families.family_name_en,
+                    families.family_name_ja,
+                    locations.location_name_en,
+                    locations.location_name_ja,
+                    plants.botanical_name,
+                    plants.image_path,
+                    plants.plant_date
+                FROM plants
+                JOIN plant_names ON plants.plant_name_id = plant_names.id
+                JOIN families ON plants.family_id = families.id
+                JOIN locations ON plants.location_id = locations.id
+                WHERE plants.plant_id = %s;
+                """,
+                (plant_id,),
+            )
+            result = cur.fetchone()
+            if result is None:
+                raise PlantNotFoundError(plant_id, f"No plant found with id {plant_id}")
+            return result
 
     def search_plants(self, query: str, search_field: str, lang: str = "en") -> list[dict]:
         """
         Search for plants by name, family, or location in the specified language.
 
-        This function performs a case-insensitive partial match (`ILIKE`) on the chosen
-        search field using the given query string. Results include plant name, family,
-        botanical name, location, image path, and plant date.
+        This function performs a case-insensitive partial match (`ILIKE`) on the specified
+        field using the given query string. The search is conducted in either English or 
+        Japanese, depending on the selected language. The results include plant details
+        along with multilingual name, family, and location information.
 
         Args:
-            query (str): The search keyword (partial or full).
-            search_field (str): The field to search by. Must be one of:
-                'name' (plant name),
-                'family' (family name),
-                'location' (location name).
-            lang (str, optional): Language of the search field and results, either
-                'en' (English) or 'ja' (Japanese). Defaults to 'en'.
+            query (str): The search keyword (partial or full match).
+            search_field (str): The field to search. Must be one of:
+                - 'name' (plant name)
+                - 'family' (family name)
+                - 'location' (location name)
+            lang (str, optional): Language used for the search field and results.
+                Must be either 'en' (English) or 'ja' (Japanese). Defaults to 'en'.
 
         Returns:
-            list[dict]: A list of dictionaries, each representing a plant record
-            that matches the search query.
+            list[dict]: A list of dictionaries where each record contains:
+                - plant_id (int)
+                - plant_name_en (str)
+                - plant_name_ja (str)
+                - family_name_en (str)
+                - family_name_ja (str)
+                - location_name_en (str)
+                - location_name_ja (str)
+                - botanical_name (str)
+                - image_path (str)
+                - plant_date (date)
 
         Raises:
             ValueError: If an invalid search field is provided.

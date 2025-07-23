@@ -1,13 +1,19 @@
 import unittest
 import uuid
 from datetime import date
-from app.plant_db_class import PlantDB
+from backend.app.db.plant_db_class import PlantDB
 from app.exceptions import (
     PlantNotFoundError,
 )
 
 
 class TestPlantDB(unittest.TestCase):
+    """
+    Unit tests for the PlantDatabase class.
+
+    This test suite verifies correct behavior of plant retrieval methods, ensuring
+    they return appropriate values when the database is empty or contains data.
+    """
 
     def setUp(self):
         self.db = PlantDB()
@@ -282,23 +288,6 @@ class TestPlantDB(unittest.TestCase):
         self.assertIn("Daisy", remaining_names, "Daisy should still exist after deleting Lily")
         self.assertNotIn("Lily", remaining_names, "Lily should no longer exist after deletion")
 
-    def test_list_plants_by_date_empty(self):
-        results = self.db.list_plants_by_date()
-        self.assertEqual(results, [])
-
-    def test_list_plants_by_date_returns_list(self):
-        self.insert_dummy_plant("Cactus", date(2023, 1, 1))
-        results = self.db.list_plants_by_date()
-        self.assertIsInstance(results, list)
-
-    def test_list_plants_by_date_ordering(self):
-        self.insert_dummy_plant("Aloe", date(2022, 1, 1))
-        self.insert_dummy_plant("Mint", date(2023, 1, 1))
-        self.insert_dummy_plant("Rose", date(2024, 1, 1))
-        results = self.db.list_plants_by_date()
-        names = [row[1] for row in results]
-        self.assertEqual(names, ["Rose", "Mint", "Aloe"])
-
     def test_get_all_plants_returns_list(self):
         """
         Test that get_all_plants returns a list.
@@ -333,6 +322,40 @@ class TestPlantDB(unittest.TestCase):
             msg="Expected 'Maple' to appear in get_all_plants results"
         )
 
+    def test_get_all_plants_structure(self):
+        """
+        Verify the structure of each plant record returned by get_all_plants.
+
+        Ensures that each result is a dictionary containing the expected keys,
+        confirming the shape of the response matches the database schema.
+
+        Expected keys:
+            - plant_id
+            - plant_name_en
+            - plant_name_ja
+            - family_name_en
+            - family_name_ja
+            - location_name_en
+            - location_name_ja
+            - botanical_name
+            - image_path
+            - plant_date
+        """
+        self.insert_dummy_plant("Oak")
+        result = self.db.get_all_plants()[0]
+
+        expected_keys = {
+            "plant_id", "plant_name_en", "plant_name_ja",
+            "family_name_en", "family_name_ja",
+            "location_name_en", "location_name_ja",
+            "botanical_name", "image_path", "plant_date"
+        }
+
+        self.assertTrue(
+            expected_keys.issubset(result.keys()),
+            msg=f"Missing keys in result: {expected_keys - set(result.keys())}"
+        )
+
     def test_get_plant_details_existing(self):
         """
         Test that get_plant_details returns correct details for an existing plant.
@@ -361,6 +384,49 @@ class TestPlantDB(unittest.TestCase):
         with self.assertRaises(PlantNotFoundError, msg="Expected PlantNotFoundError for non-existent plant_id"):
             self.db.get_plant_details(9999)
 
+    def test_list_plants_by_date_empty(self):
+        """
+        Test that list_plants_by_date returns an empty list when no plants exist.
+
+        Ensures the method handles the empty database case gracefully.
+        """
+        results = self.db.list_plants_by_date()
+        self.assertEqual(results, [], msg="Expected an empty list when no plants are in the database")
+        self.assertIsInstance(results, list, msg="Expected result to be a list even when empty")
+        self.assertEqual(len(results), 0, msg="Expected no plant records in the result")
+
+
+    def test_list_plants_by_date_returns_list(self):
+        """
+        Test that list_plants_by_date returns a list when plants exist in the database.
+
+        Ensures correct data structure is returned after inserting a plant.
+        """
+        self.insert_dummy_plant("Cactus", date(2023, 1, 1))
+        results = self.db.list_plants_by_date()
+        self.assertIsInstance(results, list, msg="Expected result to be a list when plants exist")
+        self.assertGreater(len(results), 0, msg="Expected at least one plant in the result")
+
+    def test_list_plants_by_date_ordering(self):
+        """
+        Test that list_plants_by_date returns plants ordered by date descending.
+
+        Verifies that the most recently added plants appear first in the result list.
+        """
+        self.insert_dummy_plant("Aloe", date(2022, 1, 1))
+        self.insert_dummy_plant("Mint", date(2023, 1, 1))
+        self.insert_dummy_plant("Rose", date(2024, 1, 1))
+
+        results = self.db.list_plants_by_date()
+        plant_names = [row[1] for row in results]  
+        expected_order = ["Rose", "Mint", "Aloe"]
+
+        self.assertEqual(
+            plant_names,
+            expected_order,
+            msg="Plants should be ordered from newest to oldest by plant_date"
+        )
+        
     def test_search_exact_match(self):
         self.insert_dummy_plant("Tulip")
         results = self.db.search_plant_by_name("Tulip")

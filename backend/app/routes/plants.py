@@ -13,7 +13,7 @@ db = None
 def init_db():
     global db
     if db is None:
-        from app.plant_db_class import PlantDB
+        from backend.app.db.plant_db_class import PlantDB
 
         db = PlantDB()
 

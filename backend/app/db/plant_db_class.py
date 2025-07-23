@@ -1,7 +1,7 @@
-import os
 import psycopg2 as pg2
 from psycopg2.extras import RealDictCursor
 from datetime import date
+from .connection import get_connection
 from app.utils.validators import (
     validate_positive_int,
     validate_non_empty_str,
@@ -12,20 +12,26 @@ from app.exceptions import (
     PlantNotFoundError,
     InvalidLanguageError,
 )
+from app.db.queries import (
+    GET_ALL_PLANTS,
+    GET_PLANT_DETAILS,
+    LIST_PLANTS_BY_DATE,
+    SEARCH_PLANTS,
+)
 
 class PlantDB:
+    """
+    A class to interact with the plants database.
+
+    This class provides methods for querying and modifying plant-related data
+    using a PostgreSQL connection.
+    """
     def __init__(self):
         """
         Initializes the PlantDB instance and establishes a connection to the PostgreSQL database
         using credentials from environment variables.
         """
-        self.conn = pg2.connect(
-            database=os.getenv("DB_NAME"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            host=os.getenv("DB_HOST"),
-            port=os.getenv("DB_PORT"),
-        )
+        self.conn = get_connection()
 
     def __enter__(self):
         return self
@@ -189,57 +195,7 @@ class PlantDB:
             list[dict]: List of all plant records.
         """
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT
-                    plant_id,
-                    plant_name_id,
-                    family_id,
-                    location_id,
-                    image_path,
-                    botanical_name,
-                    plant_date
-                FROM plants;
-                """
-            )
-            return cur.fetchall()
-
-    def list_plants_by_date(self, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
-        """
-        Retrieve plants filtered by an optional date range, ordered by plant_date descending.
-
-        Args:
-            start_date (date | None, optional): Start date for filtering plants (inclusive). Defaults to None.
-            end_date (date | None, optional): End date for filtering plants (inclusive). Defaults to None.
-
-        Returns:
-            list[dict]: List of plant records within the date range, sorted newest first.
-        """
-        query = """
-            SELECT
-                plant_id,
-                plant_name_id,
-                family_id,
-                location_id,
-                image_path,
-                botanical_name,
-                plant_date
-            FROM plants
-            WHERE 1=1
-        """
-        params = []
-
-        if start_date:
-            query += " AND plant_date >= %s"
-            params.append(start_date)
-        if end_date:
-            query += " AND plant_date <= %s"
-            params.append(end_date)
-
-        query += " ORDER BY plant_date DESC"
-
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, params)
+            cur.execute(GET_ALL_PLANTS)
             return cur.fetchall()
         
     def get_plant_details(self, plant_id: int) -> dict:
@@ -270,32 +226,27 @@ class PlantDB:
         validate_positive_int(plant_id, "plant_id")
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT
-                    plants.plant_id,
-                    plant_names.plant_name_en,
-                    plant_names.plant_name_ja,
-                    families.family_name_en,
-                    families.family_name_ja,
-                    locations.location_name_en,
-                    locations.location_name_ja,
-                    plants.botanical_name,
-                    plants.image_path,
-                    plants.plant_date
-                FROM plants
-                JOIN plant_names ON plants.plant_name_id = plant_names.id
-                JOIN families ON plants.family_id = families.id
-                JOIN locations ON plants.location_id = locations.id
-                WHERE plants.plant_id = %s;
-                """,
-                (plant_id,),
-            )
+            cur.execute(GET_PLANT_DETAILS, (plant_id,),)
             result = cur.fetchone()
             if result is None:
                 raise PlantNotFoundError(plant_id, f"No plant found with id {plant_id}")
             return result
 
+    def list_plants_by_date(self, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
+        """
+        Retrieve plants filtered by an optional date range, ordered by plant_date descending.
+
+        Args:
+            start_date (date | None, optional): Start date for filtering plants (inclusive). Defaults to None.
+            end_date (date | None, optional): End date for filtering plants (inclusive). Defaults to None.
+
+        Returns:
+            list[dict]: List of plant records within the date range, sorted newest first.
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(LIST_PLANTS_BY_DATE, {"start_date": start_date, "end_date": end_date})
+            return cur.fetchall()
+        
     def search_plants(self, query: str, search_field: str, lang: str = "en") -> list[dict]:
         """
         Search for plants by name, family, or location in the specified language.
@@ -343,163 +294,93 @@ class PlantDB:
             raise InvalidLanguageError(lang)
 
         column = valid_fields[search_field][lang]
+        query_sql = SEARCH_PLANTS.format(column=column)
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                f"""
-                SELECT
-                    plants.plant_id,
-                    plant_names.plant_name_en,
-                    plant_names.plant_name_ja,
-                    families.family_name_en,
-                    families.family_name_ja,
-                    locations.location_name_en,
-                    locations.location_name_ja,
-                    plants.botanical_name,
-                    plants.image_path,
-                    plants.plant_date
-                FROM plants
-                JOIN plant_names ON plants.plant_name_id = plant_names.id
-                JOIN families ON plants.family_id = families.id
-                JOIN locations ON plants.location_id = locations.id
-                WHERE {column} ILIKE %s
-                """,
-                (f"%{query}%",)
-            )
+            cur.execute(query_sql, (f"%{query}%",))
             return cur.fetchall()
         
-    def get_or_create_plant(self, plant_name_en: str,  plant_name_ja: str) -> int:
+    def _get_or_create(self, table: str, id_column: str, name_en_col: str, name_ja_col: str,
+                    name_en_val: str, name_ja_val: str) -> int:
         """
-        Retrieve the plant_id from the plant_names table if it exists,
-        or insert a new entry and return its plant_id.
+        Internal helper to retrieve or insert a record into a bilingual lookup table.
 
         Args:
-            plant_name_en (str): The English name of the plant.
-            plant_name_ja (str): The Japanese name of the plant.
+            table (str): Table name (e.g., 'plant_names').
+            id_column (str): ID column to return (e.g., 'plant_id').
+            name_en_col (str): English name column (e.g., 'plant_name_en').
+            name_ja_col (str): Japanese name column (e.g., 'plant_name_ja').
+            name_en_val (str): English name value.
+            name_ja_val (str): Japanese name value.
 
         Returns:
-            int: The corresponding plant_id, whether existing or newly created.
+            int: ID of the existing or newly inserted row.
 
         Raises:
-            TypeError: If plant names are empty or invalid.
+            TypeError: If any name is empty or invalid.
             UniqueViolation: If a uniqueness constraint is violated during insertion.
         """
-        validate_non_empty_str(plant_name_en, "plant_name_en")
-        validate_non_empty_str(plant_name_ja, "plant_name_ja")
+        validate_non_empty_str(name_en_val, name_en_col)
+        validate_non_empty_str(name_ja_val, name_ja_col)
 
         with self.conn.cursor() as cur:
             cur.execute(
-                """
-                SELECT plant_id FROM plant_names 
-                WHERE plant_name_en = %s AND plant_name_ja = %s;
+                f"""
+                SELECT {id_column} FROM {table}
+                WHERE {name_en_col} = %s AND {name_ja_col} = %s;
                 """,
-                (plant_name_en, plant_name_ja)
+                (name_en_val, name_ja_val)
             )
             result = cur.fetchone()
             if result:
                 return result[0]
-            
-            try: 
-                cur.execute(
-                    """
-                    INSERT INTO plant_names (plant_name_en, plant_name_ja)
-                    VALUES (%s, %s)
-                    RETURNING plant_id;
-                    """,
-                    (plant_name_en, plant_name_ja)
-                )
-            except pg2.errors.UniqueViolation as e:
-                handle_unique_violation(e)
-            return cur.fetchone()[0]
 
-    def get_or_create_family(self, family_name_en: str, family_name_ja: str) -> int:
-        """
-        Retrieve the family_id from the families table if it exists,
-        or insert a new entry and return its family_id.
-
-        Args:
-            family_name_en (str): Family name in English.
-            family_name_ja (str): Family name in Japanese.
-
-        Returns:
-            int: Corresponding family_id. Creates a new entry if not found.
-
-        Raises:
-            TypeError: If family names are empty or invalid.
-            UniqueViolation: If a uniqueness constraint is violated during insertion.
-        """
-        validate_non_empty_str(family_name_en, "family_name_en")
-        validate_non_empty_str(family_name_ja, "family_name_ja")
-
-        with self.conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT family_id FROM families
-                WHERE family_name_en = %s OR family_name_ja = %s;
-                """,
-                (family_name_en, family_name_ja)
-            )
-            result = cur.fetchone()
-            if result:
-                return result[0]
-            
             try:
                 cur.execute(
-                    """
-                    INSERT INTO families (family_name_en, family_name_ja)
+                    f"""
+                    INSERT INTO {table} ({name_en_col}, {name_ja_col})
                     VALUES (%s, %s)
-                    RETURNING family_id;
+                    RETURNING {id_column};
                     """,
-                    (family_name_en, family_name_ja)
+                    (name_en_val, name_ja_val)
                 )
             except pg2.errors.UniqueViolation as e:
                 handle_unique_violation(e)
-            return cur.fetchone()[0]
-            
 
+            return cur.fetchone()[0]
+
+    def get_or_create_plant(self, plant_name_en: str,  plant_name_ja: str) -> int:
+        """Get or insert a plant name entry."""
+        return self._get_or_create(
+            table="plant_names",
+            id_column="plant_id",
+            name_en_col="plant_name_en",
+            name_ja_col="plant_name_ja",
+            name_en_val=plant_name_en,
+            name_ja_val=plant_name_ja,
+        )
+
+    def get_or_create_family(self, family_name_en: str, family_name_ja: str) -> int:
+        """Get or insert a family name entry."""
+        return self._get_or_create(
+            table="families",
+            id_column="family_id",
+            name_en_col="family_name_en",
+            name_ja_col="family_name_ja",
+            name_en_val=family_name_en,
+            name_ja_val=family_name_ja,
+        )
+            
     def get_or_create_location(self, location_name_en: str, location_name_ja: str) -> int:
-        """
-        Retrieve the location_id from the locations table if it exists,
-        or insert a new entry and return its location_id.
-
-        Args:
-            location_name_en (str): Location name in English.
-            location_name_ja (str): Location name in Japanese.
-
-        Returns:
-            int: Corresponding location_id. Creates a new entry if not found.
-
-        Raises:
-            TypeError: If location names are empty or invalid.
-            UniqueViolation: If a uniqueness constraint is violated during insertion.
-        """
-        validate_non_empty_str(location_name_en, "location_name_en")
-        validate_non_empty_str(location_name_ja, "location_name_ja")
-
-        with self.conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT location_id FROM locations
-                WHERE location_name_en = %s OR location_name_ja = %s;
-                """,
-                (location_name_en, location_name_ja)
-            )
-            result = cur.fetchone()
-            if result:
-                return result[0]
-            
-            try: 
-                cur.execute(
-                    """
-                    INSERT INTO locations (location_name_en, location_name_ja)
-                    VALUES (%s, %s)
-                    RETURNING location_id;
-                    """,
-                    (location_name_en, location_name_ja)
-                )
-            except pg2.errors.UniqueViolation as e:
-                handle_unique_violation(e)
-            return cur.fetchone()[0]
+        """Get or insert a location name entry."""
+        return self._get_or_create(
+            table="locations",
+            id_column="location_id",
+            name_en_col="location_name_en",
+            name_ja_col="location_name_ja",
+            name_en_val=location_name_en,
+            name_ja_val=location_name_ja,
+        )
 
 
 

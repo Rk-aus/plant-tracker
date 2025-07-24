@@ -4,6 +4,10 @@ from datetime import date
 from backend.app.db.plant_db_class import PlantDB
 from app.exceptions import (
     PlantNotFoundError,
+    InvalidLanguageError,
+    InvalidSearchFieldError,
+    UniqueBotanicalNameError,
+    UniqueImagePathError,
 )
 
 
@@ -23,19 +27,32 @@ class TestPlantDB(unittest.TestCase):
         self.db.conn.rollback()
         self.db.close()
 
-    def insert_dummy_plant(self, name: str = "SamplePlant", plant_date: date | None = None):
+    def insert_dummy_plant(
+        self,
+        plant_name_en: str = "SamplePlant",
+        plant_name_ja: str = "サンプル",
+        plant_date: date | None = None,
+        image_filename: str = "sample.jpg",
+        botanical_name: str = "Plantus exampleus",
+    ):
         """
-        Helper method to insert a dummy plant with given name and optional date.
-        Uses get_or_create methods for plant, family, and location to ensure dependencies.
+        Inserts a dummy plant record into the database for testing purposes.
+
+        This helper method ensures that the required foreign key dependencies 
+        (plant name, family, and location) exist using get_or_create methods. 
+        It is typically used in test setups to populate the database with sample data.
 
         Args:
-            name (str): English name of the plant.
-            plant_date (date | None): Optional date of the plant; defaults to today if None.
+            plant_name_en (str): English name of the plant. Defaults to "SamplePlant".
+            plant_name_ja (str): Japanese name of the plant. Defaults to "サンプル".
+            plant_date (date | None): Date the plant was observed. Defaults to today if None.
+            image_filename (str): Filename of the plant image. Defaults to "sample.jpg".
+            botanical_name (str): Scientific (botanical) name of the plant. Defaults to "Plantus exampleus".
 
         Returns:
             None
         """
-        plant_name_id = self.db.get_or_create_plant(name, "サンプル")
+        plant_name_id = self.db.get_or_create_plant(plant_name_en, plant_name_ja)
         family_id = self.db.get_or_create_family("Sampleaceae", "サンプル科")
         location_id = self.db.get_or_create_location("TestTown", "テスト町")
 
@@ -43,8 +60,8 @@ class TestPlantDB(unittest.TestCase):
             plant_name_id=plant_name_id,
             family_id=family_id,
             location_id=location_id,
-            image_filename="sample.jpg",
-            botanical_name="Plantus exampleus",
+            image_filename=image_filename,
+            botanical_name=botanical_name,
             plant_date=plant_date or date.today(),
         )
 
@@ -124,6 +141,31 @@ class TestPlantDB(unittest.TestCase):
                         case["botanical_name"],
                         case["plant_date"],
                     )
+
+    def test_insert_duplicate_botanical_name_raises(self):
+        """
+        Test that inserting a plant with a duplicate botanical name raises UniqueBotanicalNameError.
+        """
+        botanical_name = "UniqueBotanicalName"
+        # Insert the first plant with this botanical name
+        self.insert_dummy_plant(plant_name_en="Plant1", botanical_name=botanical_name)
+
+        # Insert second plant with a different name but same botanical name to trigger uniqueness error
+        with self.assertRaises(UniqueBotanicalNameError):
+            self.insert_dummy_plant(plant_name_en="Plant2", botanical_name=botanical_name)
+
+
+    def test_insert_duplicate_image_path_raises(self):
+        """
+        Test that inserting a plant with a duplicate image path raises UniqueImagePathError.
+        """
+        image_path = "unique_path.jpg"
+        # Insert the first plant with this image path
+        self.insert_dummy_plant(plant_name_en="Plant1", image_filename=image_path)
+
+        # Insert second plant with different botanical name but same image path
+        with self.assertRaises(UniqueImagePathError):
+            self.insert_dummy_plant(plant_name_en="Plant2", image_filename=image_path)
 
     def test_insert_custom_date(self):
         """
@@ -395,7 +437,6 @@ class TestPlantDB(unittest.TestCase):
         self.assertIsInstance(results, list, msg="Expected result to be a list even when empty")
         self.assertEqual(len(results), 0, msg="Expected no plant records in the result")
 
-
     def test_list_plants_by_date_returns_list(self):
         """
         Test that list_plants_by_date returns a list when plants exist in the database.
@@ -418,7 +459,7 @@ class TestPlantDB(unittest.TestCase):
         self.insert_dummy_plant("Rose", date(2024, 1, 1))
 
         results = self.db.list_plants_by_date()
-        plant_names = [row[1] for row in results]  
+        plant_names = [row["plant_name_en"] for row in results]  
         expected_order = ["Rose", "Mint", "Aloe"]
 
         self.assertEqual(
@@ -426,38 +467,151 @@ class TestPlantDB(unittest.TestCase):
             expected_order,
             msg="Plants should be ordered from newest to oldest by plant_date"
         )
-        
+    
+    def test_list_plants_same_date(self):
+        """
+        Test that list_plants_by_date handles multiple plants with the same date.
+
+        The order among plants with the same date is not guaranteed unless explicitly sorted by a secondary key.
+        This test verifies that all records with the same date are included in the result.
+        """
+        same_date = date(2024, 1, 1)
+        names = ["Lavender", "Thyme", "Basil"]
+        for name in names:
+            self.insert_dummy_plant(name, same_date)
+
+        results = self.db.list_plants_by_date()
+        returned_names = [row["plant_name_en"] for row in results]
+
+        for name in names:
+            self.assertIn(name, returned_names, msg=f"{name} should be present in results")
+
+        self.assertEqual(
+            sorted(returned_names),
+            sorted(names),
+            msg="All plants with the same date should be returned regardless of order"
+        )
+
     def test_search_exact_match(self):
+        """
+        Test that the search_plants method returns the correct result
+        when an exact English plant name is searched.
+
+        This test ensures:
+        - The inserted plant is returned when searched by its full name.
+        - The search is case-insensitive and supports exact string matching.
+        - The returned records contain the correct English plant name.
+        """
         self.insert_dummy_plant("Tulip")
-        results = self.db.search_plant_by_name("Tulip")
-        self.assertTrue(any("Tulip" in row for row in results))
+        results = self.db.search_plants("Tulip", search_field="name", lang="en")
+        
+        self.assertGreater(len(results), 0, "Expected at least one result for 'Tulip'")
+        
+        found = any(plant["plant_name_en"] == "Tulip" for plant in results)
+        self.assertTrue(found, "Exact match for 'Tulip' not found in search results.")
+
+    def test_search_plants_in_japanese(self):
+        """
+        Test searching for plants using the Japanese name field.
+
+        This test inserts a plant with a known Japanese name and performs a partial
+        match search using that Japanese string. It asserts that the correct plant
+        is returned when the search is performed in Japanese.
+
+        Ensures that:
+        - The function correctly uses the Japanese column based on the lang='ja' argument.
+        - Partial matching with ILIKE is working for Japanese characters.
+        """
+        self.insert_dummy_plant(plant_name_en="Sunflower", plant_name_ja="ヒマワリ")
+        results = self.db.search_plants("ヒマ", search_field="name", lang="ja")
+        self.assertTrue(any(row["plant_name_ja"] == "ヒマワリ" for row in results))
 
     def test_search_case_insensitive(self):
+        """
+        Test that plant name search is case-insensitive.
+
+        Ensures that searching with lowercase input returns matching records
+        even if the original plant name contains uppercase letters.
+        """
         self.insert_dummy_plant("Tulip")
-        results = self.db.search_plant_by_name("tulip")
-        self.assertTrue(any("Tulip" in row for row in results))
+        results = self.db.search_plants("tulip", search_field="name", lang="en")
+
+        self.assertTrue(
+            any("Tulip" in row for row in results),
+            msg="Expected 'Tulip' to be found in case-insensitive search results for 'tulip'."
+        )
 
     def test_search_partial_match(self):
+        """
+        Test that searching by a partial string returns matching plants.
+
+        Verifies that a substring of the plant name can be used to find
+        the full plant name in the search results.
+        """
         self.insert_dummy_plant("Tulip")
-        results = self.db.search_plant_by_name("lip")
-        self.assertTrue(any("Tulip" in row for row in results))
+        results = self.db.search_plants("lip", search_field="name", lang="en")
+
+        self.assertTrue(
+            any("Tulip" in row for row in results),
+            msg="Expected 'Tulip' to be found when searching with partial string 'lip'."
+        )
 
     def test_search_multiple_matches(self):
+        """
+        Test that searching with a partial query returns multiple matching plants.
+
+        Verifies that the search method returns all plants whose names partially match the query string.
+        """
         self.insert_dummy_plant("Sunflower")
         self.insert_dummy_plant("Sundew")
-        results = self.db.search_plant_by_name("Sun")
-        names = [row[1] for row in results]
-        self.assertIn("Sunflower", names)
-        self.assertIn("Sundew", names)
+        results = self.db.search_plants("Sun", search_field="name", lang="en")
+        names = [row["plant_name_en"] for row in results]
+
+        self.assertIn("Sunflower", names, msg="Expected 'Sunflower' to be in search results for query 'Sun'.")
+        self.assertIn("Sundew", names, msg="Expected 'Sundew' to be in search results for query 'Sun'.")
 
     def test_search_no_results(self):
-        results = self.db.search_plant_by_name("Nonexistent")
-        self.assertEqual(results, [])
+        """
+        Test that searching with a query that matches no plants returns an empty list.
+
+        Ensures the search method correctly returns no results for non-matching queries.
+        """
+        results = self.db.search_plants("Nonexistent", "name")
+        self.assertEqual(results, [], msg="Expected empty list when no plants match the search query.")
 
     def test_search_empty_string_returns_all(self):
+        """
+        Test that searching with an empty string returns all plants.
+
+        Verifies that an empty query returns at least the inserted plants,
+        effectively retrieving all available records.
+        """
         self.insert_dummy_plant("Rose")
-        results = self.db.search_plant_by_name("")
-        self.assertGreaterEqual(len(results), 1)
+        results = self.db.search_plants("", "name")
+        self.assertGreaterEqual(len(results), 1, msg="Expected at least one plant record when searching with an empty string.")
+
+    def test_search_invalid_search_field(self):
+        """
+        Test that a InvalidSearchFieldError is raised when an invalid search field is used.
+
+        The method should only accept 'name', 'family', or 'location' as valid
+        fields for searching. This test ensures that providing an unsupported
+        field like 'color' triggers a proper InvalidSearchFieldError.
+        """
+        with self.assertRaises(InvalidSearchFieldError):
+            self.db.search_plants("Tulip", search_field="color")  
+
+    def test_search_invalid_language_code(self):
+        """
+        Test that a InvalidLanguageError is raised when an invalid language code is used.
+
+        The search_plants method should only accept 'en' (English) or 'ja' (Japanese)
+        as valid language codes for determining which column to search against.
+        This test ensures that providing an unsupported language code like 'fr'
+        results in a clear and immediate InvalidLanguageError.
+        """
+        with self.assertRaises(InvalidLanguageError):
+            self.db.search_plants("Tulip", search_field="name", lang="fr")  
 
     def test_get_or_create_plant_with_empty_name(self):
         with self.assertRaises(ValueError):
@@ -465,7 +619,6 @@ class TestPlantDB(unittest.TestCase):
         
         with self.assertRaises(ValueError):
             self.db.get_or_create_plant("Sample", "")  
-
 
 if __name__ == "__main__":
     unittest.main()

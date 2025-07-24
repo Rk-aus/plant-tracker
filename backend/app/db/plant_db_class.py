@@ -11,6 +11,7 @@ from app.utils.validators import (
 from app.exceptions import (
     PlantNotFoundError,
     InvalidLanguageError,
+    InvalidSearchFieldError,
 )
 from app.db.queries import (
     GET_ALL_PLANTS,
@@ -289,7 +290,7 @@ class PlantDB:
         }
 
         if search_field not in valid_fields:
-            raise ValueError("Invalid search field.")
+            raise InvalidSearchFieldError("Invalid search field.")
         if lang not in ("en", "ja"):
             raise InvalidLanguageError(lang)
 

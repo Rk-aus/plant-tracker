@@ -11,45 +11,40 @@ class UniqueImagePathError(UniquePlantConstraintError):
     pass
 
 
-class NotFoundError(Exception):
-    """
-    Base exception for all 'not found' errors in the application.
-
-    This class can be inherited by more specific exceptions such as
-    PlantNotFoundError, FamilyNotFoundError, and LocationNotFoundError
-    to provide consistent error handling and response formatting.
-
-    Attributes:
-        message (str): Description of the error.
-        status_code (int): HTTP status code for API responses (default: 404).
-    """
-    def __init__(self, message=None, status_code=404):
-        self.message = message or "Resource was not found."
-        self.status_code = status_code
-        super().__init__(self.message)
-
-class PlantNotFoundError(NotFoundError):
+class PlantNotFoundError(Exception):
     """
     Raised when a plant could not be found by the provided identifier.
 
     Attributes:
         identifier (str): The plant name or unique key used in the lookup.
-        message (str): Optional custom error message.
+        message (str): Description of the error.
         status_code (int): HTTP status code (default: 404).
     """
-    def __init__(self, identifier, message=None, status_code=404):
+
+    def __init__(self, identifier: str, message: str = None, status_code: int = 404):
         self.identifier = identifier
-        default_msg = f"Plant with identifier '{identifier}' not found."
-        super().__init__(message or default_msg, status_code)
+        self.message = message or f"Plant with identifier '{identifier}' not found."
+        self.status_code = status_code
+        super().__init__(self.message)
+
+
+
+class InvalidSearchFieldError(ValueError):
+    """Raised when an invalid search field is provided to the search_plants method."""
+    def __init__(self, field: str):
+        message = f"Invalid search field: '{field}'. Must be 'name', 'family', or 'location'."
+        super().__init__(message)
+        self.field = field
 
 class InvalidLanguageError(ValueError):
     """
     Raised when an unsupported language code is provided.
 
     Attributes:
-        language (str): The invalid language code.
-        message (str): Explanation of accepted values ('en' or 'ja').
+        language (str): The invalid language code that triggered the error.
     """
-    def __init__(self, language):
-        super().__init__(f"Invalid language '{language}'. Must be 'en' or 'ja'.")
+    def __init__(self, language: str):
+        message = f"Invalid language '{language}'. Must be 'en' or 'ja'."
+        super().__init__(message)
+        self.language = language
 

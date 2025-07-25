@@ -11,9 +11,9 @@ PLANT_SELECT_BASE = """
         plants.image_path,
         plants.plant_date
     FROM plants
-    JOIN plant_names ON plants.plant_name_id = plant_names.id
-    JOIN families ON plants.family_id = families.id
-    JOIN locations ON plants.location_id = locations.id
+    JOIN plant_names ON plants.plant_name_id = plant_names.plant_name_id
+    JOIN families ON plants.family_id = families.family_id
+    JOIN locations ON plants.location_id = locations.location_id
 """
 
 GET_ALL_PLANTS = PLANT_SELECT_BASE + ";"

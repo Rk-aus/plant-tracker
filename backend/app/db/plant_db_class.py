@@ -2,6 +2,7 @@ import psycopg2 as pg2
 from psycopg2.extras import RealDictCursor
 from datetime import date
 from .connection import get_connection
+from typing import Optional
 from app.utils.validators import (
     validate_positive_int,
     validate_non_empty_str,
@@ -53,7 +54,7 @@ class PlantDB:
         location_id: int,
         image_path: str,
         botanical_name: str,
-        plant_date: date | None = None,
+        plant_date: Optional[date] = None,
     ) -> None:
         """
         Insert a new plant record into the database.
@@ -112,7 +113,7 @@ class PlantDB:
         location_id: int,
         image_path: str,
         botanical_name: str,
-        plant_date: date | None = None,
+        plant_date: Optional[date] = None,
     ) -> None:
         """
         Update a plant record with new data.
@@ -233,7 +234,7 @@ class PlantDB:
                 raise PlantNotFoundError(plant_id, f"No plant found with id {plant_id}")
             return result
 
-    def list_plants_by_date(self, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
+    def list_plants_by_date(self, start_date: Optional[date] = None, end_date: Optional[date] = None) -> list[dict]:
         """
         Retrieve plants filtered by an optional date range, ordered by plant_date descending.
 
@@ -354,7 +355,7 @@ class PlantDB:
         """Get or insert a plant name entry."""
         return self._get_or_create(
             table="plant_names",
-            id_column="plant_id",
+            id_column="plant_name_id",
             name_en_col="plant_name_en",
             name_ja_col="plant_name_ja",
             name_en_val=plant_name_en,

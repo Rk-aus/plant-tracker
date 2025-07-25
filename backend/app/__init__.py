@@ -3,8 +3,8 @@ import logging
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
-from app.routes.plants import plants_bp
-from app.routes.uploads import uploads_bp
+from .routes.plants import plants_bp
+from .routes.uploads import uploads_bp
 
 logging.basicConfig(level=logging.DEBUG)
 

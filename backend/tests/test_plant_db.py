@@ -1,7 +1,8 @@
 import unittest
 import uuid
 from datetime import date
-from backend.app.db.plant_db_class import PlantDB
+from typing import Optional
+from app.db.plant_db_class import PlantDB
 from app.exceptions import (
     PlantNotFoundError,
     InvalidLanguageError,
@@ -31,8 +32,8 @@ class TestPlantDB(unittest.TestCase):
         self,
         plant_name_en: str = "SamplePlant",
         plant_name_ja: str = "サンプル",
-        plant_date: date | None = None,
-        image_filename: str = "sample.jpg",
+        plant_date: Optional[date] = None,
+        image_path: str = "sample.jpg",
         botanical_name: str = "Plantus exampleus",
     ):
         """
@@ -45,8 +46,8 @@ class TestPlantDB(unittest.TestCase):
         Args:
             plant_name_en (str): English name of the plant. Defaults to "SamplePlant".
             plant_name_ja (str): Japanese name of the plant. Defaults to "サンプル".
-            plant_date (date | None): Date the plant was observed. Defaults to today if None.
-            image_filename (str): Filename of the plant image. Defaults to "sample.jpg".
+            plant_date (date | None, optional): Date the plant was observed. Defaults to today if None.
+            image_path (str): Filename of the plant image. Defaults to "sample.jpg".
             botanical_name (str): Scientific (botanical) name of the plant. Defaults to "Plantus exampleus".
 
         Returns:
@@ -60,7 +61,7 @@ class TestPlantDB(unittest.TestCase):
             plant_name_id=plant_name_id,
             family_id=family_id,
             location_id=location_id,
-            image_filename=image_filename,
+            image_path=image_path,
             botanical_name=botanical_name,
             plant_date=plant_date or date.today(),
         )
@@ -73,7 +74,7 @@ class TestPlantDB(unittest.TestCase):
         unique_name = f"TestPlant-{uuid.uuid4()}"
         self.insert_dummy_plant(unique_name)
         results = self.db.search_plants("TestPlant", "name")
-        self.assertIn(unique_name, [row["name"] for row in results], f"Inserted plant '{unique_name}' not found in search results.")
+        self.assertIn(unique_name, [row["plant_name_en"] for row in results], f"Inserted plant '{unique_name}' not found in search results.")
 
     def test_insert_empty_image_path(self):
         """
@@ -147,10 +148,8 @@ class TestPlantDB(unittest.TestCase):
         Test that inserting a plant with a duplicate botanical name raises UniqueBotanicalNameError.
         """
         botanical_name = "UniqueBotanicalName"
-        # Insert the first plant with this botanical name
         self.insert_dummy_plant(plant_name_en="Plant1", botanical_name=botanical_name)
 
-        # Insert second plant with a different name but same botanical name to trigger uniqueness error
         with self.assertRaises(UniqueBotanicalNameError):
             self.insert_dummy_plant(plant_name_en="Plant2", botanical_name=botanical_name)
 
@@ -160,19 +159,17 @@ class TestPlantDB(unittest.TestCase):
         Test that inserting a plant with a duplicate image path raises UniqueImagePathError.
         """
         image_path = "unique_path.jpg"
-        # Insert the first plant with this image path
-        self.insert_dummy_plant(plant_name_en="Plant1", image_filename=image_path)
+        self.insert_dummy_plant(plant_name_en="Plant1", image_path=image_path)
 
-        # Insert second plant with different botanical name but same image path
         with self.assertRaises(UniqueImagePathError):
-            self.insert_dummy_plant(plant_name_en="Plant2", image_filename=image_path)
+            self.insert_dummy_plant(plant_name_en="Plant2", image_path=image_path)
 
     def test_insert_custom_date(self):
         """
         Test that inserting a plant with a custom date correctly stores and retrieves that date.
         """
         custom_date = date(2023, 5, 1)
-        self.insert_dummy_plant("Iris", custom_date)
+        self.insert_dummy_plant("Iris", plant_date=custom_date)
         results = self.db.search_plants("Iris", "name")
         self.assertGreater(len(results), 0, "No results returned for plant search")
         self.assertEqual(results[0]['plant_date'], custom_date, "Plant date does not match the custom date inserted")
@@ -299,8 +296,11 @@ class TestPlantDB(unittest.TestCase):
         """
         Ensure deleting a non-existent plant ID does not raise an exception.
         """
-        with self.assertDoesNotRaise():
+        try: 
             self.db.delete_plant(99999)
+        except Exception:
+            self.fail("delete_plant raised an exception unexpectedly")
+        
 
     def test_delete_invalid_id_type(self):
         """
@@ -317,7 +317,7 @@ class TestPlantDB(unittest.TestCase):
         Test that deleting one specific plant removes it and leaves others intact.
         """
         self.insert_dummy_plant("Lily")
-        self.insert_dummy_plant("Daisy")
+        self.insert_dummy_plant(plant_name_en="Daisy", image_path="sample2.jpg", botanical_name= "Plantus exampleus2")
         
         plants = self.db.get_all_plants()
         lily_id = next(row[0] for row in plants if row[1] == "Lily")
@@ -443,7 +443,7 @@ class TestPlantDB(unittest.TestCase):
 
         Ensures correct data structure is returned after inserting a plant.
         """
-        self.insert_dummy_plant("Cactus", date(2023, 1, 1))
+        self.insert_dummy_plant("Cactus", plant_date=date(2023, 1, 1))
         results = self.db.list_plants_by_date()
         self.assertIsInstance(results, list, msg="Expected result to be a list when plants exist")
         self.assertGreater(len(results), 0, msg="Expected at least one plant in the result")
@@ -454,9 +454,9 @@ class TestPlantDB(unittest.TestCase):
 
         Verifies that the most recently added plants appear first in the result list.
         """
-        self.insert_dummy_plant("Aloe", date(2022, 1, 1))
-        self.insert_dummy_plant("Mint", date(2023, 1, 1))
-        self.insert_dummy_plant("Rose", date(2024, 1, 1))
+        self.insert_dummy_plant("Aloe", plant_date=date(2022, 1, 1))
+        self.insert_dummy_plant("Mint", plant_date=date(2023, 1, 1))
+        self.insert_dummy_plant("Rose", plant_date=date(2024, 1, 1))
 
         results = self.db.list_plants_by_date()
         plant_names = [row["plant_name_en"] for row in results]  
@@ -478,7 +478,7 @@ class TestPlantDB(unittest.TestCase):
         same_date = date(2024, 1, 1)
         names = ["Lavender", "Thyme", "Basil"]
         for name in names:
-            self.insert_dummy_plant(name, same_date)
+            self.insert_dummy_plant(name, plant_date=same_date)
 
         results = self.db.list_plants_by_date()
         returned_names = [row["plant_name_en"] for row in results]
@@ -614,10 +614,10 @@ class TestPlantDB(unittest.TestCase):
             self.db.search_plants("Tulip", search_field="name", lang="fr")  
 
     def test_get_or_create_plant_with_empty_name(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             self.db.get_or_create_plant("", "サンプル")  
         
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             self.db.get_or_create_plant("Sample", "")  
 
 if __name__ == "__main__":

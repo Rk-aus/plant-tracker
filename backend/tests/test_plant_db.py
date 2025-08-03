@@ -174,6 +174,18 @@ class TestPlantDB(unittest.TestCase):
         self.assertGreater(len(results), 0, "No results returned for plant search")
         self.assertEqual(results[0]['plant_date'], custom_date, "Plant date does not match the custom date inserted")
 
+    def test_insert_long_botanical_name(self):
+        long_name = "A" * 255
+        plant_id = self.insert_dummy_plant(botanical_name=long_name)
+        plant = self.db.get_plant_details(plant_id)
+        self.assertEqual(plant["botanical_name"], long_name, "Bontanical name does not match the custom name inserted")
+
+    def test_insert_long_image_path(self):
+        long_path = "A" * 255    
+        plant_id = self.insert_dummy_plant(image_path=long_path)
+        plant = self.db.get_plant_details(plant_id)
+        self.assertEqual(plant["image_path"], long_path, "Image path does not match the custom path inserted")
+
     def test_update_plant_success(self):
         """Test that update_plant correctly updates all fields for an existing plant."""
         plant_name_id_old = self.db.get_or_create_plant("OldName", "古い")

@@ -151,7 +151,7 @@ class TestPlantDB(unittest.TestCase):
         self.insert_dummy_plant(plant_name_en="Plant1", botanical_name=botanical_name)
 
         with self.assertRaises(UniqueBotanicalNameError):
-            self.insert_dummy_plant(plant_name_en="Plant2", botanical_name=botanical_name)
+            self.insert_dummy_plant(plant_name_en="Plant2", plant_name_ja="サンプル２", image_path="sample2.jpg", botanical_name=botanical_name)
 
 
     def test_insert_duplicate_image_path_raises(self):
@@ -162,7 +162,7 @@ class TestPlantDB(unittest.TestCase):
         self.insert_dummy_plant(plant_name_en="Plant1", image_path=image_path)
 
         with self.assertRaises(UniqueImagePathError):
-            self.insert_dummy_plant(plant_name_en="Plant2", image_path=image_path)
+            self.insert_dummy_plant(plant_name_en="Plant2", plant_name_ja="サンプル２", image_path=image_path, botanical_name="Plantus exampleus2")
 
     def test_insert_custom_date(self):
         """
@@ -214,7 +214,7 @@ class TestPlantDB(unittest.TestCase):
         self.assertEqual(updated["location_name_ja"], "新市", "Japanese location name mismatch")
         self.assertEqual(updated["image_path"], "new.jpg", "Image path was not updated correctly")
         self.assertEqual(updated["botanical_name"], "NewBotanical", "Botanical name mismatch")
-        self.assertEqual(updated["plant_date"], "2023-06-01", "Plant date mismatch")
+        self.assertEqual(updated["plant_date"], date(2023, 6, 1), "Plant date mismatch")
 
     def test_update_nonexistent_id(self):
         """Test that update_plant raises PlantNotFoundError when the plant_id does not exist."""
@@ -292,15 +292,12 @@ class TestPlantDB(unittest.TestCase):
             f"Plant with id {plant_id} was not deleted"
     )
 
-    def test_delete_nonexistent_plant(self):
+    def test_delete_nonexistent_plant_raises_error(self):
         """
-        Ensure deleting a non-existent plant ID does not raise an exception.
+        Ensure deleting a non-existent plant ID raises PlantNotFoundError.
         """
-        try: 
+        with self.assertRaises(PlantNotFoundError):
             self.db.delete_plant(99999)
-        except Exception:
-            self.fail("delete_plant raised an exception unexpectedly")
-        
 
     def test_delete_invalid_id_type(self):
         """
@@ -316,16 +313,16 @@ class TestPlantDB(unittest.TestCase):
         """
         Test that deleting one specific plant removes it and leaves others intact.
         """
-        self.insert_dummy_plant("Lily")
-        self.insert_dummy_plant(plant_name_en="Daisy", image_path="sample2.jpg", botanical_name= "Plantus exampleus2")
+        self.insert_dummy_plant(plant_name_en="Lily")
+        self.insert_dummy_plant(plant_name_en="Daisy", plant_name_ja="サンプル２", image_path="sample2.jpg", botanical_name="Plantus exampleus2")
         
         plants = self.db.get_all_plants()
-        lily_id = next(row[0] for row in plants if row[1] == "Lily")
+        lily_id = next(row["plant_id"] for row in plants if row["plant_name_en"] == "Lily")
 
         self.db.delete_plant(lily_id)
 
         remaining = self.db.get_all_plants()
-        remaining_names = [row[1] for row in remaining]
+        remaining_names = [row["plant_name_en"] for row in remaining]
 
         self.assertIn("Daisy", remaining_names, "Daisy should still exist after deleting Lily")
         self.assertNotIn("Lily", remaining_names, "Lily should no longer exist after deletion")
@@ -455,8 +452,8 @@ class TestPlantDB(unittest.TestCase):
         Verifies that the most recently added plants appear first in the result list.
         """
         self.insert_dummy_plant("Aloe", plant_date=date(2022, 1, 1))
-        self.insert_dummy_plant("Mint", plant_date=date(2023, 1, 1))
-        self.insert_dummy_plant("Rose", plant_date=date(2024, 1, 1))
+        self.insert_dummy_plant("Mint", plant_name_ja="サンプル２", image_path="sample2.jpg", botanical_name="Plantus exampleus2", plant_date=date(2023, 1, 1))
+        self.insert_dummy_plant("Rose", plant_name_ja="サンプル３", image_path="sample3.jpg", botanical_name="Plantus exampleus3", plant_date=date(2024, 1, 1))
 
         results = self.db.list_plants_by_date()
         plant_names = [row["plant_name_en"] for row in results]  
@@ -477,8 +474,10 @@ class TestPlantDB(unittest.TestCase):
         """
         same_date = date(2024, 1, 1)
         names = ["Lavender", "Thyme", "Basil"]
-        for name in names:
-            self.insert_dummy_plant(name, plant_date=same_date)
+        self.insert_dummy_plant("Lavender", plant_date=same_date)
+        self.insert_dummy_plant("Thyme", plant_name_ja="サンプル２", image_path="sample2.jpg", botanical_name="Plantus exampleus2", plant_date=same_date)
+        self.insert_dummy_plant("Basil", plant_name_ja="サンプル３", image_path="sample3.jpg", botanical_name="Plantus exampleus3", plant_date=same_date)
+
 
         results = self.db.list_plants_by_date()
         returned_names = [row["plant_name_en"] for row in results]
@@ -533,11 +532,11 @@ class TestPlantDB(unittest.TestCase):
         Ensures that searching with lowercase input returns matching records
         even if the original plant name contains uppercase letters.
         """
-        self.insert_dummy_plant("Tulip")
+        self.insert_dummy_plant(plant_name_en="Tulip")
         results = self.db.search_plants("tulip", search_field="name", lang="en")
 
         self.assertTrue(
-            any("Tulip" in row for row in results),
+            any("Tulip" in row["plant_name_en"] for row in results),
             msg="Expected 'Tulip' to be found in case-insensitive search results for 'tulip'."
         )
 
@@ -552,7 +551,7 @@ class TestPlantDB(unittest.TestCase):
         results = self.db.search_plants("lip", search_field="name", lang="en")
 
         self.assertTrue(
-            any("Tulip" in row for row in results),
+            any("Tulip" in row["plant_name_en"] for row in results),
             msg="Expected 'Tulip' to be found when searching with partial string 'lip'."
         )
 
@@ -562,8 +561,8 @@ class TestPlantDB(unittest.TestCase):
 
         Verifies that the search method returns all plants whose names partially match the query string.
         """
-        self.insert_dummy_plant("Sunflower")
-        self.insert_dummy_plant("Sundew")
+        self.insert_dummy_plant(plant_name_en="Sunflower")
+        self.insert_dummy_plant(plant_name_en="Sundew", plant_name_ja="サンプル２", image_path="sample2.jpg", botanical_name="Plantus exampleus2")
         results = self.db.search_plants("Sun", search_field="name", lang="en")
         names = [row["plant_name_en"] for row in results]
 

@@ -18,7 +18,6 @@ class TestPlantDB(unittest.TestCase):
     This test suite verifies correct behavior of plant retrieval methods, ensuring
     they return appropriate values when the database is empty or contains data.
     """
-
     def setUp(self):
         self.db = PlantDB()
         self.db.conn.autocommit = False
@@ -77,32 +76,32 @@ class TestPlantDB(unittest.TestCase):
 
     def test_insert_empty_image_path(self):
         """
-        Test that inserting a plant with an empty image path raises a TypeError.
+        Test that inserting a plant with an empty image path raises a ValueError.
         """
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             self.db.insert_plant(1, 1, 1, "", "BotanicalName")
 
     def test_insert_empty_botanical_name(self):
         """
-        Test that inserting a plant with an empty botanical name raises a TypeError.
+        Test that inserting a plant with an empty botanical name raises a ValueError.
         """
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             self.db.insert_plant(1, 1, 1, "some/path.jpg", "")
 
     def test_insert_blank_strings(self):
         """
         Test that inserting a plant with blank (whitespace only) image path or botanical name
-        raises a TypeError.
+        raises a ValueError.
         """
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             self.db.insert_plant(1, 1, 1, "   ", "BotanicalName")
 
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             self.db.insert_plant(1, 1, 1, "some/path.jpg", "   ")
 
     def test_insert_invalid_ids(self):
         """
-        Test that inserting a plant with invalid IDs (zero or negative) raises a TypeError.
+        Test that inserting a plant with invalid IDs (zero or negative) raises a ValueError.
         Runs subtests for various invalid combinations.
         """
         test_cases = [
@@ -113,7 +112,7 @@ class TestPlantDB(unittest.TestCase):
         ]
         for plant_name_id, family_id, location_id in test_cases:
             with self.subTest(plant_name_id=plant_name_id, family_id=family_id, location_id=location_id):
-                with self.assertRaises(TypeError, msg=f"Invalid IDs ({plant_name_id}, {family_id}, {location_id}) did not raise TypeError"):
+                with self.assertRaises(ValueError, msg=f"Invalid IDs ({plant_name_id}, {family_id}, {location_id}) did not raise ValueError"):
                     self.db.insert_plant(plant_name_id, family_id, location_id, "path.jpg", "BotanicalName")
 
     def test_insert_invalid_type(self):
@@ -216,6 +215,36 @@ class TestPlantDB(unittest.TestCase):
         plant_id = self.insert_dummy_plant(image_path=url_path)
         plant = self.db.get_plant_details(plant_id)
         self.assertEqual(plant["image_path"], url_path, "URL image path was not stored/retrieved correctly")
+
+    def test_trim_whitespace_in_botanical_name(self):
+        """
+        Test that leading/trailing whitespace in botanical_name is trimmed before insertion.
+        """
+        clean_name = "Rosa chinensis"
+        name_with_whitespace = "  Rosa chinensis  "
+        plant_id = self.insert_dummy_plant(botanical_name=name_with_whitespace)
+        plant = self.db.get_plant_details(plant_id)
+        self.assertEqual(plant["botanical_name"], clean_name, "Botanical name whitespace was not trimmed")
+
+    def test_trim_whitespace_in_plant_name(self):
+        """
+        Test that leading/trailing whitespace in plant_name_en is trimmed before insertion.
+        """
+        clean_name = "Chinese rose"
+        plant_name_with_whitespace = "\t Chinese rose \n"
+        plant_id = self.insert_dummy_plant(plant_name_en=plant_name_with_whitespace)
+        plant = self.db.get_plant_details(plant_id)
+        self.assertEqual(plant["plant_name_en"], clean_name, "Plant name whitespace was not trimmed")
+
+    def test_trim_whitespace_in_image_path(self):
+        """
+        Test that leading/trailing whitespace in image_path is trimmed before insertion.
+        """
+        clean_path = "images/rose.jpg"
+        path_with_whitespace = "  images/rose.jpg  "
+        plant_id = self.insert_dummy_plant(image_path=path_with_whitespace)
+        plant = self.db.get_plant_details(plant_id)
+        self.assertEqual(plant["image_path"], clean_path, "Image path whitespace was not trimmed")
 
     def test_update_plant_success(self):
         """Test that update_plant correctly updates all fields for an existing plant."""
@@ -656,10 +685,10 @@ class TestPlantDB(unittest.TestCase):
             self.db.search_plants("Tulip", search_field="name", lang="fr")  
 
     def test_get_or_create_plant_with_empty_name(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             self.db.get_or_create_plant("", "サンプル")  
         
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             self.db.get_or_create_plant("Sample", "")  
 
 if __name__ == "__main__":

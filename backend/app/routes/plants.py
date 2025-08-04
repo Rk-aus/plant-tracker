@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, make_response, url_for
 from app.utils.auth import require_api_key
-from app.utils.validators import (
+from app.utils.validators.api_validators import (
     get_validated_date,
     validate_required_image,
     validate_required_fields,

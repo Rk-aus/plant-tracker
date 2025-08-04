@@ -1,11 +1,11 @@
 import psycopg2 as pg2
 from psycopg2.extras import RealDictCursor
 from datetime import date
-from .connection import get_connection
 from typing import Optional
-from app.utils.validators import (
+from .connection import get_connection
+from app.utils.validators.db_validators import (
     validate_positive_int,
-    validate_non_empty_str,
+    validate_and_strip_str,
     validate_date_or_none,
     handle_unique_violation,
 )
@@ -130,8 +130,8 @@ class PlantDB:
         validate_positive_int(plant_name_id, "plant_name_id")
         validate_positive_int(family_id, "family_id")
         validate_positive_int(location_id, "location_id")
-        validate_non_empty_str(image_path, "image_path")
-        validate_non_empty_str(botanical_name, "botanical_name")
+        image_path = validate_and_strip_str(image_path, "image_path")
+        botanical_name = validate_and_strip_str(botanical_name, "botanical_name")
         validate_date_or_none(plant_date, "plant_date")
 
         try:
@@ -243,14 +243,12 @@ class PlantDB:
             UniqueImagePathError: If the image path already exists.
                 These are subclasses of UniquePlantConstraintError.
         """
-        image_path = image_path.strip()
-        botanical_name = botanical_name.strip()
         validate_positive_int(plant_id, "plant_id")  
         validate_positive_int(plant_name_id, "plant_name_id")
         validate_positive_int(family_id, "family_id")
         validate_positive_int(location_id, "location_id")
-        validate_non_empty_str(image_path, "image_path")
-        validate_non_empty_str(botanical_name, "botanical_name")
+        validate_and_strip_str(image_path, "image_path")
+        validate_and_strip_str(botanical_name, "botanical_name")
         validate_date_or_none(plant_date, "plant_date")
 
         try:
@@ -433,10 +431,8 @@ class PlantDB:
             TypeError: If any name is empty or invalid.
             UniqueViolation: If a uniqueness constraint is violated during insertion.
         """
-        name_en_val = name_en_val.strip()
-        name_ja_val = name_ja_val.strip()
-        validate_non_empty_str(name_en_val, name_en_col)
-        validate_non_empty_str(name_ja_val, name_ja_col)
+        name_en_val = validate_and_strip_str(name_en_val, name_en_col)
+        name_ja_val = validate_and_strip_str(name_ja_val, name_ja_col)
 
         with self.conn.cursor() as cur:
             cur.execute(

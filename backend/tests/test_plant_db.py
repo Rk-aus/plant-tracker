@@ -11,7 +11,6 @@ from app.exceptions import (
     UniqueImagePathError,
 )
 
-
 class TestPlantDB(unittest.TestCase):
     """
     Unit tests for the PlantDatabase class.
@@ -153,7 +152,6 @@ class TestPlantDB(unittest.TestCase):
         with self.assertRaises(UniqueBotanicalNameError):
             self.insert_dummy_plant(plant_name_en="Plant2", plant_name_ja="サンプル２", image_path="sample2.jpg", botanical_name=botanical_name)
 
-
     def test_insert_duplicate_image_path_raises(self):
         """
         Test that inserting a plant with a duplicate image path raises UniqueImagePathError.
@@ -175,16 +173,49 @@ class TestPlantDB(unittest.TestCase):
         self.assertEqual(results[0]['plant_date'], custom_date, "Plant date does not match the custom date inserted")
 
     def test_insert_long_botanical_name(self):
+        """
+        Test inserting a plant with a long botanical name to ensure it is stored and retrieved correctly.
+        """
         long_name = "A" * 255
         plant_id = self.insert_dummy_plant(botanical_name=long_name)
         plant = self.db.get_plant_details(plant_id)
         self.assertEqual(plant["botanical_name"], long_name, "Bontanical name does not match the custom name inserted")
 
     def test_insert_long_image_path(self):
+        """
+        Test inserting a plant with a long image path to ensure it is stored and retrieved correctly.
+        """
         long_path = "A" * 255    
         plant_id = self.insert_dummy_plant(image_path=long_path)
         plant = self.db.get_plant_details(plant_id)
         self.assertEqual(plant["image_path"], long_path, "Image path does not match the custom path inserted")
+    
+    def test_insert_image_path_with_special_characters(self):
+        """
+        Test inserting a plant with special characters in the image path.
+        """
+        special_path = "plant@#$.jpg"
+        plant_id = self.insert_dummy_plant(image_path=special_path)
+        plant = self.db.get_plant_details(plant_id)
+        self.assertEqual(plant["image_path"], special_path, "Special character image path was not stored/retrieved correctly")
+
+    def test_insert_image_path_with_emoji(self):
+        """
+        Test inserting a plant with an emoji in the image path.
+        """
+        emoji_path = "images/plants/🌿_leaf.png"
+        plant_id = self.insert_dummy_plant(image_path=emoji_path)
+        plant = self.db.get_plant_details(plant_id)
+        self.assertEqual(plant["image_path"], emoji_path, "Emoji image path was not stored/retrieved correctly")
+
+    def test_insert_image_path_with_url(self):
+        """
+        Test inserting a plant with a full URL as the image path.
+        """
+        url_path = "http://example.com/plant.jpg"
+        plant_id = self.insert_dummy_plant(image_path=url_path)
+        plant = self.db.get_plant_details(plant_id)
+        self.assertEqual(plant["image_path"], url_path, "URL image path was not stored/retrieved correctly")
 
     def test_update_plant_success(self):
         """Test that update_plant correctly updates all fields for an existing plant."""

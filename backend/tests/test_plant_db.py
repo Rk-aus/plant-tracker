@@ -72,20 +72,20 @@ class TestPlantDB(unittest.TestCase):
         unique_name = f"TestPlant-{uuid.uuid4()}"
         self.insert_dummy_plant(unique_name)
         results = self.db.search_plants("TestPlant", "name")
-        self.assertIn(unique_name, [row["plant_name_en"] for row in results], f"Inserted plant '{unique_name}' not found in search results.")
+        self.assertIn(unique_name, [row["plant_name_en"] for row in results], msg=f"Inserted plant '{unique_name}' not found in search results.")
 
     def test_insert_empty_image_path(self):
         """
         Test that inserting a plant with an empty image path raises a ValueError.
         """
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError, msg="Expected ValueError when image_path is empty"):
             self.db.insert_plant(1, 1, 1, "", "BotanicalName")
 
     def test_insert_empty_botanical_name(self):
         """
         Test that inserting a plant with an empty botanical name raises a ValueError.
         """
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError, msg="Expected ValueError when botanical_name is empty"):
             self.db.insert_plant(1, 1, 1, "some/path.jpg", "")
 
     def test_insert_blank_strings(self):
@@ -93,10 +93,10 @@ class TestPlantDB(unittest.TestCase):
         Test that inserting a plant with blank (whitespace only) image path or botanical name
         raises a ValueError.
         """
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError, msg="Expected ValueError when image_path is blank"):
             self.db.insert_plant(1, 1, 1, "   ", "BotanicalName")
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError, msg="Expected ValueError when botanical_name is blank"):
             self.db.insert_plant(1, 1, 1, "some/path.jpg", "   ")
 
     def test_insert_invalid_ids(self):
@@ -112,7 +112,13 @@ class TestPlantDB(unittest.TestCase):
         ]
         for plant_name_id, family_id, location_id in test_cases:
             with self.subTest(plant_name_id=plant_name_id, family_id=family_id, location_id=location_id):
-                with self.assertRaises(ValueError, msg=f"Invalid IDs ({plant_name_id}, {family_id}, {location_id}) did not raise ValueError"):
+                with self.assertRaises(
+                    ValueError,
+                    msg=(
+                        f"Expected ValueError when inserting plant with invalid IDs: "
+                        f"plant_name_id={plant_name_id}, family_id={family_id}, location_id={location_id}"
+                    )
+                ):
                     self.db.insert_plant(plant_name_id, family_id, location_id, "path.jpg", "BotanicalName")
 
     def test_insert_invalid_type(self):
@@ -131,7 +137,8 @@ class TestPlantDB(unittest.TestCase):
 
         for case in test_cases:
             with self.subTest(case=case):
-                with self.assertRaises(TypeError, msg=f"Input {case} did not raise TypeError"):
+                input_summary = ", ".join(f"{k}={v!r}" for k, v in case.items())
+                with self.assertRaises(TypeError, msg=f"Expected TypeError for input: {input_summary}"):
                     self.db.insert_plant(
                         case["plant_name_id"],
                         case["family_id"],
@@ -161,6 +168,21 @@ class TestPlantDB(unittest.TestCase):
         with self.assertRaises(UniqueImagePathError):
             self.insert_dummy_plant(plant_name_en="Plant2", plant_name_ja="サンプル２", image_path=image_path, botanical_name="Plantus exampleus2")
 
+    def test_insert_default_date(self):
+        """
+        Test that inserting a plant without a custom date defaults to today's date.
+        """
+        today = date.today()
+        self.insert_dummy_plant("Lily")  
+        results = self.db.search_plants("Lily", "name")
+        self.assertGreater(len(results), 0, msg="No results returned for plant search")
+        plant_date = results[0]['plant_date']
+        self.assertEqual(
+            plant_date,
+            today,
+            msg=f"Expected plant_date to be '{today}', but got '{plant_date}'"
+        )
+
     def test_insert_custom_date(self):
         """
         Test that inserting a plant with a custom date correctly stores and retrieves that date.
@@ -168,8 +190,13 @@ class TestPlantDB(unittest.TestCase):
         custom_date = date(2023, 5, 1)
         self.insert_dummy_plant("Iris", plant_date=custom_date)
         results = self.db.search_plants("Iris", "name")
-        self.assertGreater(len(results), 0, "No results returned for plant search")
-        self.assertEqual(results[0]['plant_date'], custom_date, "Plant date does not match the custom date inserted")
+        self.assertGreater(len(results), 0, msg="No results returned for plant search")
+        plant_date = results[0]['plant_date']
+        self.assertEqual(
+            plant_date,
+            custom_date,
+            msg=f"Expected plant_date to be '{custom_date}', but got '{plant_date}'"
+        )
 
     def test_insert_long_botanical_name(self):
         """
@@ -177,8 +204,12 @@ class TestPlantDB(unittest.TestCase):
         """
         long_name = "A" * 255
         plant_id = self.insert_dummy_plant(botanical_name=long_name)
-        plant = self.db.get_plant_details(plant_id)
-        self.assertEqual(plant["botanical_name"], long_name, "Bontanical name does not match the custom name inserted")
+        botanical_name = self.db.get_plant_details(plant_id)["botanical_name"]
+        self.assertEqual(
+            botanical_name,
+            long_name,
+            msg=f"Expected botanical_name to be '{long_name}', but got '{botanical_name}'"
+        )
 
     def test_insert_long_image_path(self):
         """
@@ -186,8 +217,12 @@ class TestPlantDB(unittest.TestCase):
         """
         long_path = "A" * 255    
         plant_id = self.insert_dummy_plant(image_path=long_path)
-        plant = self.db.get_plant_details(plant_id)
-        self.assertEqual(plant["image_path"], long_path, "Image path does not match the custom path inserted")
+        image_path = self.db.get_plant_details(plant_id)["image_path"]
+        self.assertEqual(
+            image_path,
+            long_path,
+            msg=f"Expected image_path to be '{long_path}', but got '{image_path}'"
+        )
     
     def test_insert_image_path_with_special_characters(self):
         """
@@ -195,8 +230,12 @@ class TestPlantDB(unittest.TestCase):
         """
         special_path = "plant@#$.jpg"
         plant_id = self.insert_dummy_plant(image_path=special_path)
-        plant = self.db.get_plant_details(plant_id)
-        self.assertEqual(plant["image_path"], special_path, "Special character image path was not stored/retrieved correctly")
+        image_path = self.db.get_plant_details(plant_id)["image_path"]
+        self.assertEqual(
+            image_path,
+            special_path,
+            msg=f"Expected image_path to be '{special_path}', but got '{image_path}'"
+        )
 
     def test_insert_image_path_with_emoji(self):
         """
@@ -204,8 +243,12 @@ class TestPlantDB(unittest.TestCase):
         """
         emoji_path = "images/plants/🌿_leaf.png"
         plant_id = self.insert_dummy_plant(image_path=emoji_path)
-        plant = self.db.get_plant_details(plant_id)
-        self.assertEqual(plant["image_path"], emoji_path, "Emoji image path was not stored/retrieved correctly")
+        image_path = self.db.get_plant_details(plant_id)["image_path"]
+        self.assertEqual(
+            image_path,
+            emoji_path,
+            msg=f"Expected image_path to be '{emoji_path}', but got '{image_path}'"
+        )
 
     def test_insert_image_path_with_url(self):
         """
@@ -213,8 +256,12 @@ class TestPlantDB(unittest.TestCase):
         """
         url_path = "http://example.com/plant.jpg"
         plant_id = self.insert_dummy_plant(image_path=url_path)
-        plant = self.db.get_plant_details(plant_id)
-        self.assertEqual(plant["image_path"], url_path, "URL image path was not stored/retrieved correctly")
+        image_path = self.db.get_plant_details(plant_id)["image_path"]
+        self.assertEqual(
+            image_path,
+            url_path,
+            msg=f"Expected image_path to be '{url_path}', but got '{image_path}'"
+        )
 
     def test_trim_whitespace_in_botanical_name(self):
         """
@@ -223,8 +270,12 @@ class TestPlantDB(unittest.TestCase):
         clean_name = "Rosa chinensis"
         name_with_whitespace = "  Rosa chinensis  "
         plant_id = self.insert_dummy_plant(botanical_name=name_with_whitespace)
-        plant = self.db.get_plant_details(plant_id)
-        self.assertEqual(plant["botanical_name"], clean_name, "Botanical name whitespace was not trimmed")
+        botanical_name = self.db.get_plant_details(plant_id)["botanical_name"]
+        self.assertEqual(
+            botanical_name,
+            clean_name,
+            msg=f"Expected botanical_name to be '{clean_name}', but got '{botanical_name}'"
+        )
 
     def test_trim_whitespace_in_plant_name(self):
         """
@@ -233,8 +284,12 @@ class TestPlantDB(unittest.TestCase):
         clean_name = "Chinese rose"
         plant_name_with_whitespace = "\t Chinese rose \n"
         plant_id = self.insert_dummy_plant(plant_name_en=plant_name_with_whitespace)
-        plant = self.db.get_plant_details(plant_id)
-        self.assertEqual(plant["plant_name_en"], clean_name, "Plant name whitespace was not trimmed")
+        plant_name_en = self.db.get_plant_details(plant_id)["plant_name_en"]
+        self.assertEqual(
+            plant_name_en,
+            clean_name,
+            msg=f"Expected plant_name_en to be '{clean_name}', but got '{plant_name_en}'"
+        )
 
     def test_trim_whitespace_in_image_path(self):
         """
@@ -243,8 +298,12 @@ class TestPlantDB(unittest.TestCase):
         clean_path = "images/rose.jpg"
         path_with_whitespace = "  images/rose.jpg  "
         plant_id = self.insert_dummy_plant(image_path=path_with_whitespace)
-        plant = self.db.get_plant_details(plant_id)
-        self.assertEqual(plant["image_path"], clean_path, "Image path whitespace was not trimmed")
+        image_path = self.db.get_plant_details(plant_id)["image_path"]
+        self.assertEqual(
+            image_path,
+            clean_path,
+            msg=f"Expected image_path to be '{clean_path}', but got '{image_path}'"
+        )
 
     def test_update_plant_success(self):
         """Test that update_plant correctly updates all fields for an existing plant."""
@@ -277,16 +336,16 @@ class TestPlantDB(unittest.TestCase):
         )
 
         updated = self.db.search_plants("NewName", "name")[0]
-        self.assertEqual(updated["plant_id"], plant_id, "Plant ID mismatch")
-        self.assertEqual(updated["plant_name_en"], "NewName", "English name was not updated correctly")
-        self.assertEqual(updated["plant_name_ja"], "新しい", "Japanese name was not updated correctly")
-        self.assertEqual(updated["family_name_en"], "NewFamily", "English family name mismatch")
-        self.assertEqual(updated["family_name_ja"], "新しい科", "Japanese family name mismatch")
-        self.assertEqual(updated["location_name_en"], "NewCity", "English location name mismatch")
-        self.assertEqual(updated["location_name_ja"], "新市", "Japanese location name mismatch")
-        self.assertEqual(updated["image_path"], "new.jpg", "Image path was not updated correctly")
-        self.assertEqual(updated["botanical_name"], "NewBotanical", "Botanical name mismatch")
-        self.assertEqual(updated["plant_date"], date(2023, 6, 1), "Plant date mismatch")
+        self.assertEqual(updated["plant_id"], plant_id, msg=f"Expected plant_id to be '{plant_id}', but got '{updated['plant_id']}'")
+        self.assertEqual(updated["plant_name_en"], "NewName", msg=f"Expected plant_name_en to be 'NewName', but got '{updated['plant_name_en']}'")
+        self.assertEqual(updated["plant_name_ja"], "新しい", msg=f"Expected plant_name_ja to be '新しい', but got '{updated['plant_name_ja']}'")
+        self.assertEqual(updated["family_name_en"], "NewFamily", msg=f"Expected family_name_en to be 'NewFamily', but got '{updated['family_name_en']}'")
+        self.assertEqual(updated["family_name_ja"], "新しい科", msg=f"Expected family_name_ja to be '新しい科', but got '{updated['family_name_ja']}'")
+        self.assertEqual(updated["location_name_en"], "NewCity", msg=f"Expected location_name_en to be 'NewCity', but got '{updated['location_name_en']}'")
+        self.assertEqual(updated["location_name_ja"], "新市", msg=f"Expected location_name_ja to be '新市', but got '{updated['location_name_ja']}'")
+        self.assertEqual(updated["image_path"], "new.jpg", msg=f"Expected image_path to be 'new.jpg', but got '{updated['image_path']}'")
+        self.assertEqual(updated["botanical_name"], "NewBotanical", msg=f"Expected botanical_name to be 'NewBotanical', but got '{updated['botanical_name']}'")
+        self.assertEqual(updated["plant_date"], date(2023, 6, 1), msg=f"Expected plant_date to be '{date(2023, 6, 1)}', but got '{updated['plant_date']}'")
 
     def test_update_nonexistent_id(self):
         """Test that update_plant raises PlantNotFoundError when the plant_id does not exist."""
@@ -294,7 +353,7 @@ class TestPlantDB(unittest.TestCase):
         family_id = self.db.get_or_create_family("Phantomaceae", "幻科")
         location_id = self.db.get_or_create_location("Void", "虚無")
 
-        with self.assertRaises(PlantNotFoundError, msg="Expected exception not raised when updating nonexistent plant ID"):
+        with self.assertRaises(PlantNotFoundError):
             self.db.update_plant(
                 plant_id=99999,
                 plant_name_id=plant_name_id,
@@ -311,7 +370,7 @@ class TestPlantDB(unittest.TestCase):
         family_id = self.db.get_or_create_family("NewFamily", "新しい科")
         location_id = self.db.get_or_create_location("NewCity", "新市")
 
-        with self.assertRaises(TypeError, msg="Expected TypeError for non-integer plant_id"):
+        with self.assertRaises(TypeError):
             self.db.update_plant(
                 "not-an-id",      
                 plant_name_id,
@@ -332,7 +391,7 @@ class TestPlantDB(unittest.TestCase):
         plants = self.db.search_plants("TestName", "name")
         plant_id = plants[0]["plant_id"]
         
-        with self.assertRaises(TypeError, msg="Expected TypeError for invalid plant_name_id"):
+        with self.assertRaises(TypeError):
             self.db.update_plant(
                 plant_id,
                 "",  
@@ -378,7 +437,7 @@ class TestPlantDB(unittest.TestCase):
         invalid_ids = ["invalid_id", None, 12.34, [], {}, ""]
         for invalid_id in invalid_ids:
             with self.subTest(invalid_id=invalid_id):
-                with self.assertRaises(TypeError, msg=f"delete_plant did not raise TypeError for ID: {invalid_id}"):
+                with self.assertRaises(TypeError, msg=f"Expected TypeError for ID: {repr(invalid_id)}"):
                     self.db.delete_plant(invalid_id)
 
     def test_delete_only_one_plant(self):
@@ -396,8 +455,8 @@ class TestPlantDB(unittest.TestCase):
         remaining = self.db.get_all_plants()
         remaining_names = [row["plant_name_en"] for row in remaining]
 
-        self.assertIn("Daisy", remaining_names, "Daisy should still exist after deleting Lily")
-        self.assertNotIn("Lily", remaining_names, "Lily should no longer exist after deletion")
+        self.assertIn("Daisy", remaining_names, msg="Daisy should still exist after deleting Lily")
+        self.assertNotIn("Lily", remaining_names, msg="Lily should no longer exist after deletion")
 
     def test_get_all_plants_returns_list(self):
         """
@@ -416,7 +475,7 @@ class TestPlantDB(unittest.TestCase):
         table is empty, confirming correct behavior on initial state.
         """
         plants = self.db.get_all_plants()
-        self.assertEqual(plants, [], msg="Expected empty list when no plants are present")
+        self.assertEqual(plants, [], msg=f"Expected an empty list, but got '{plants}'")
 
     def test_get_all_plants_after_insert(self):
         """
@@ -481,9 +540,9 @@ class TestPlantDB(unittest.TestCase):
 
         details = self.db.get_plant_details(plant_id)
 
-        self.assertEqual(details["plant_name_en"], "Daisy", msg="Expected plant name to be 'Daisy'")
-        self.assertEqual(details["family_name_en"], "Sampleaceae", msg="Expected family name to be 'Sampleaceae'")
-        self.assertEqual(details["location_name_en"], "TestTown", msg="Expected location name to be 'TestTown'")
+        self.assertEqual(details["plant_name_en"], "Daisy", msg=f"Expected plant_name_en to be 'Daisy', but got '{details['plant_name_en']}'")
+        self.assertEqual(details["family_name_en"], "Sampleaceae", msg=f"Expected family_name_en to be 'Sampleaceae', but got '{details['family_name_en']}'")
+        self.assertEqual(details["location_name_en"], "TestTown", msg=f"Expected location_name_en to be 'TestTown', but got '{details['location_name_en']}'")
 
     def test_get_plant_details_nonexistent(self):
         """
@@ -492,7 +551,7 @@ class TestPlantDB(unittest.TestCase):
         Attempts to retrieve details for a plant ID that does not exist and verifies
         that the appropriate exception is raised.
         """
-        with self.assertRaises(PlantNotFoundError, msg="Expected PlantNotFoundError for non-existent plant_id"):
+        with self.assertRaises(PlantNotFoundError):
             self.db.get_plant_details(9999)
 
     def test_list_plants_by_date_empty(self):
@@ -502,9 +561,9 @@ class TestPlantDB(unittest.TestCase):
         Ensures the method handles the empty database case gracefully.
         """
         results = self.db.list_plants_by_date()
-        self.assertEqual(results, [], msg="Expected an empty list when no plants are in the database")
+        self.assertEqual(results, [], msg=f"Expected an empty list, but got '{results}'")
         self.assertIsInstance(results, list, msg="Expected result to be a list even when empty")
-        self.assertEqual(len(results), 0, msg="Expected no plant records in the result")
+        self.assertEqual(len(results), 0, msg=f"Expected no plant records in the result, but got '{len(results)}'")
 
     def test_list_plants_by_date_returns_list(self):
         """
@@ -534,9 +593,12 @@ class TestPlantDB(unittest.TestCase):
         self.assertEqual(
             plant_names,
             expected_order,
-            msg="Plants should be ordered from newest to oldest by plant_date"
+            msg=(
+                f"Expected plant names ordered as {expected_order}, "
+                f"but got {plant_names}"
+            )
         )
-    
+
     def test_list_plants_same_date(self):
         """
         Test that list_plants_by_date handles multiple plants with the same date.
@@ -559,8 +621,11 @@ class TestPlantDB(unittest.TestCase):
 
         self.assertEqual(
             sorted(returned_names),
-            sorted(names),
-            msg="All plants with the same date should be returned regardless of order"
+            sorted(names),            
+            msg=(
+                f"Expected plant names ordered as {sorted(names)}, "
+                f"but got {sorted(returned_names)}"
+            )
         )
 
     def test_search_exact_match(self):
@@ -576,7 +641,7 @@ class TestPlantDB(unittest.TestCase):
         self.insert_dummy_plant("Tulip")
         results = self.db.search_plants("Tulip", search_field="name", lang="en")
         
-        self.assertGreater(len(results), 0, "Expected at least one result for 'Tulip'")
+        self.assertGreater(len(results), 0, msg="Expected at least one result for 'Tulip'")
         
         found = any(plant["plant_name_en"] == "Tulip" for plant in results)
         self.assertTrue(found, "Exact match for 'Tulip' not found in search results.")
@@ -648,7 +713,7 @@ class TestPlantDB(unittest.TestCase):
         Ensures the search method correctly returns no results for non-matching queries.
         """
         results = self.db.search_plants("Nonexistent", "name")
-        self.assertEqual(results, [], msg="Expected empty list when no plants match the search query.")
+        self.assertEqual(results, [], msg=f"Expected an empty list, but got '{results}'")
 
     def test_search_empty_string_returns_all(self):
         """
@@ -685,10 +750,10 @@ class TestPlantDB(unittest.TestCase):
             self.db.search_plants("Tulip", search_field="name", lang="fr")  
 
     def test_get_or_create_plant_with_empty_name(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError, msg="Expected ValueError when plant_name_en is empty"):
             self.db.get_or_create_plant("", "サンプル")  
         
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError, msg="Expected ValueError when plant_name_ja is empty"):
             self.db.get_or_create_plant("Sample", "")  
 
 if __name__ == "__main__":

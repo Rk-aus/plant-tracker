@@ -175,7 +175,11 @@ class TestPlantDB(unittest.TestCase):
         today = date.today()
         self.insert_dummy_plant("Lily")  
         results = self.db.search_plants("Lily", "name")
-        self.assertGreater(len(results), 0, msg="No results returned for plant search")
+        self.assertGreater(
+            len(results), 
+            0,
+            msg=f"Expected at least one search result, but got 0 results for query 'Lily'"
+        )
         plant_date = results[0]['plant_date']
         self.assertEqual(
             plant_date,
@@ -190,7 +194,11 @@ class TestPlantDB(unittest.TestCase):
         custom_date = date(2023, 5, 1)
         self.insert_dummy_plant("Iris", plant_date=custom_date)
         results = self.db.search_plants("Iris", "name")
-        self.assertGreater(len(results), 0, msg="No results returned for plant search")
+        self.assertGreater(
+            len(results), 
+            0,
+            msg=f"Expected at least one search result, but got 0 results for query 'Iris'"
+        )
         plant_date = results[0]['plant_date']
         self.assertEqual(
             plant_date,
@@ -468,7 +476,11 @@ class TestPlantDB(unittest.TestCase):
         Ensures the method consistently returns a list, even if the database is empty.
         """
         results = self.db.get_all_plants()
-        self.assertIsInstance(results, list, msg="Expected get_all_plants to return a list")
+        self.assertIsInstance(
+            results,
+            list,
+            msg=f"Expected get_all_plants to return a list type, but got type: {type(results).__name__}"
+        )
 
     def test_get_all_plants_empty(self):
         """
@@ -565,7 +577,11 @@ class TestPlantDB(unittest.TestCase):
         """
         results = self.db.list_plants_by_date()
         self.assertEqual(results, [], msg=f"Expected an empty list, but got '{results}'")
-        self.assertIsInstance(results, list, msg="Expected result to be a list even when empty")
+        self.assertIsInstance(
+            results,
+            list,
+            msg=f"Expected list_plants_by_date to return a list type when empty, but got type: {type(results).__name__}"
+        )
         self.assertEqual(len(results), 0, msg=f"Expected no plant records in the result, but got '{len(results)}'")
 
     def test_list_plants_by_date_returns_list(self):
@@ -576,8 +592,16 @@ class TestPlantDB(unittest.TestCase):
         """
         self.insert_dummy_plant("Cactus", plant_date=date(2023, 1, 1))
         results = self.db.list_plants_by_date()
-        self.assertIsInstance(results, list, msg="Expected result to be a list when plants exist")
-        self.assertGreater(len(results), 0, msg="Expected at least one plant in the result")
+        self.assertIsInstance(
+            results,
+            list,
+            msg=f"Expected list_plants_by_date to return a list type when plants exist, but got type: {type(results).__name__}"
+        )
+        self.assertGreater(
+            len(results), 
+            0,
+            msg="Expected at least one plant record from list_plants_by_date, but received 0 results"
+        )
 
     def test_list_plants_by_date_ordering(self):
         """
@@ -644,7 +668,11 @@ class TestPlantDB(unittest.TestCase):
         self.insert_dummy_plant("Tulip")
         results = self.db.search_plants("Tulip", search_field="name", lang="en")
         
-        self.assertGreater(len(results), 0, msg="Expected at least one result for 'Tulip'")
+        self.assertGreater(
+            len(results), 
+            0,
+            msg=f"Expected at least one search result, but got 0 results for query 'Tulip'"
+        )
         
         self.assertTrue(
             any(plant["plant_name_en"] == "Tulip" for plant in results), 

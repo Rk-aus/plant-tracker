@@ -410,7 +410,10 @@ class TestPlantDB(unittest.TestCase):
         self.insert_dummy_plant("Basil")
 
         plants_before_delete = self.db.get_all_plants()
-        self.assertTrue(plants_before_delete, "No plants found after insertion")
+        self.assertTrue(
+            plants_before_delete, 
+            msg=f"Expected at least one plant after insertion, but got: {plants_before_delete}"
+        )
 
         plant_id = plants_before_delete[0]["plant_id"]
 
@@ -488,8 +491,8 @@ class TestPlantDB(unittest.TestCase):
         plants = self.db.get_all_plants()
 
         self.assertTrue(
-            any("Maple" in (row.get("plant_name_en") or "") for row in plants),
-            msg="Expected 'Maple' to appear in get_all_plants results"
+            any(plant["plant_name_en"] == "Maple" for plant in plants), 
+            msg=f"Expected at least one plant_name_en to be 'Maple' in get_all_plants results, but got: {[row['plant_name_en'] for row in plants]}"
         )
 
     def test_get_all_plants_structure(self):
@@ -643,8 +646,10 @@ class TestPlantDB(unittest.TestCase):
         
         self.assertGreater(len(results), 0, msg="Expected at least one result for 'Tulip'")
         
-        found = any(plant["plant_name_en"] == "Tulip" for plant in results)
-        self.assertTrue(found, "Exact match for 'Tulip' not found in search results.")
+        self.assertTrue(
+            any(plant["plant_name_en"] == "Tulip" for plant in results), 
+            msg=f"Expected at least one plant_name_en to be 'Tulip' when searching with 'Tulip', but got: {[row['plant_name_en'] for row in results]}"
+            )
 
     def test_search_plants_in_japanese(self):
         """
@@ -660,7 +665,11 @@ class TestPlantDB(unittest.TestCase):
         """
         self.insert_dummy_plant(plant_name_en="Sunflower", plant_name_ja="ヒマワリ")
         results = self.db.search_plants("ヒマ", search_field="name", lang="ja")
-        self.assertTrue(any(row["plant_name_ja"] == "ヒマワリ" for row in results))
+
+        self.assertTrue(
+            any(row["plant_name_ja"] == "ヒマワリ" for row in results),
+            msg=f"Expected at least one plant_name_ja to be 'ヒマワリ' when searching with partial string 'ヒマ', but got: {[row['plant_name_ja'] for row in results]}"
+        )
 
     def test_search_case_insensitive(self):
         """
@@ -673,8 +682,8 @@ class TestPlantDB(unittest.TestCase):
         results = self.db.search_plants("tulip", search_field="name", lang="en")
 
         self.assertTrue(
-            any("Tulip" in row["plant_name_en"] for row in results),
-            msg="Expected 'Tulip' to be found in case-insensitive search results for 'tulip'."
+            any(row["plant_name_en"] == "Tulip" for row in results),
+            msg=f"Expected at least one plant_name_en to be 'Tulip' when searching with partial string 'lip', but got: {[row['plant_name_en'] for row in results]}"
         )
 
     def test_search_partial_match(self):
@@ -688,8 +697,8 @@ class TestPlantDB(unittest.TestCase):
         results = self.db.search_plants("lip", search_field="name", lang="en")
 
         self.assertTrue(
-            any("Tulip" in row["plant_name_en"] for row in results),
-            msg="Expected 'Tulip' to be found when searching with partial string 'lip'."
+            any(row["plant_name_en"] == "Tulip" for row in results),
+            msg=f"Expected at least one plant_name_en to be 'Tulip' when searching with partial string 'lip', but got: {[row['plant_name_en'] for row in results]}"
         )
 
     def test_search_multiple_matches(self):

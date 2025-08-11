@@ -82,6 +82,110 @@ class TestPlantDB(unittest.TestCase):
         results = self.db.search_plants("TestPlant", "name")
         self.assertIn(unique_name, [row["plant_name_en"] for row in results], msg=f"Inserted plant '{unique_name}' not found in search results.")
 
+    def test_insert_plant_by_names(self):
+        """
+        Insert a plant using insert_plant_by_names with all existing names,
+        and verify the returned plant ID is a positive integer.
+        """
+        plant_id = self.db.insert_plant_by_names(
+            plant_name_en="ExistingPlant",
+            plant_name_ja="既存植物",
+            family_name_en="ExistingFamily",
+            family_name_ja="既存科",
+            location_name_en="ExistingLocation",
+            location_name_ja="既存場所",
+            image_path=f"happy_path_{uuid.uuid4()}.jpg", 
+            botanical_name=f"HappyBotanicalName_{uuid.uuid4()}",
+            plant_date=date.today(),
+        )
+        self.assertIsInstance(
+            plant_id, int,
+            msg=f"Expected plant_id to be an integer, but got type: {type(plant_id).__name__}"
+        )
+        self.assertGreater(
+            plant_id, 0,
+            msg=f"Expected plant_id to be a positive integer, but got: {plant_id}"
+        )
+
+
+
+    def test_insert_name_creation(self):
+        """Name creation: new names are created as needed."""
+        unique_suffix = str(date.today().timestamp()).replace('.', '')
+        plant_id = self.db.insert_plant_by_names(
+            plant_name_en=f"NewPlant{unique_suffix}",
+            plant_name_ja=f"新規植物{unique_suffix}",
+            family_name_en=f"NewFamily{unique_suffix}",
+            family_name_ja=f"新規科{unique_suffix}",
+            location_name_en=f"NewLocation{unique_suffix}",
+            location_name_ja=f"新規場所{unique_suffix}",
+            image_path=f"new_path_{unique_suffix}.jpg",
+            botanical_name=f"NewBotanicalName{unique_suffix}",
+            plant_date=date.today(),
+        )
+        self.assertIsInstance(plant_id, int)
+        self.assertGreater(plant_id, 0)
+
+    def test_insert_bad_types(self):
+        """Passing bad argument types raises TypeError."""
+        with self.assertRaises(TypeError):
+            self.db.insert_plant_by_names(
+                plant_name_en=123,  # should be str
+                plant_name_ja="既存植物",
+                family_name_en="既存科",
+                family_name_ja="既存科",
+                location_name_en="既存場所",
+                location_name_ja="既存場所",
+                image_path="bad_type.jpg",
+                botanical_name="BadTypeBotanicalName",
+            )
+
+    def test_insert_constraint_violation(self):
+        """Inserting duplicates triggers the expected custom exceptions."""
+        botanical_name = "UniqueBotanicalNameForTest"
+        image_path = "unique_image_path_for_test.jpg"
+
+        # Insert the first time successfully
+        self.db.insert_plant_by_names(
+            plant_name_en="Plant1",
+            plant_name_ja="植物1",
+            family_name_en="Family1",
+            family_name_ja="科1",
+            location_name_en="Location1",
+            location_name_ja="場所1",
+            image_path=image_path,
+            botanical_name=botanical_name,
+            plant_date=date.today(),
+        )
+
+        # Duplicate botanical_name should raise UniqueBotanicalNameError
+        with self.assertRaises(UniqueBotanicalNameError):
+            self.db.insert_plant_by_names(
+                plant_name_en="Plant2",
+                plant_name_ja="植物2",
+                family_name_en="Family2",
+                family_name_ja="科2",
+                location_name_en="Location2",
+                location_name_ja="場所2",
+                image_path="another_unique_image.jpg",
+                botanical_name=botanical_name,
+                plant_date=date.today(),
+            )
+
+        # Duplicate image_path should raise UniqueImagePathError
+        with self.assertRaises(UniqueImagePathError):
+            self.db.insert_plant_by_names(
+                plant_name_en="Plant3",
+                plant_name_ja="植物3",
+                family_name_en="Family3",
+                family_name_ja="科3",
+                location_name_en="Location3",
+                location_name_ja="場所3",
+                image_path=image_path,
+                botanical_name="AnotherUniqueBotanicalName",
+                plant_date=date.today(),
+            )
+
     def test_insert_empty_image_path(self):
         """
         Test that inserting a plant with an empty image path raises a ValueError.

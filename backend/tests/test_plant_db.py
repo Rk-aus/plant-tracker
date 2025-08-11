@@ -30,35 +30,43 @@ class TestPlantDB(unittest.TestCase):
         self,
         plant_name_en: str = "SamplePlant",
         plant_name_ja: str = "サンプル",
-        plant_date: Optional[date] = None,
+        family_name_en: str = "Sampleaceae",
+        family_name_ja: str = "サンプル科",
+        location_name_en: str = "TestTown",
+        location_name_ja: str = "テスト町",
         image_path: str = "sample.jpg",
         botanical_name: str = "Plantus exampleus",
+        plant_date: Optional[date] = None,
     ):
         """
-        Inserts a dummy plant record into the database for testing purposes.
+        Insert a dummy plant record into the database for testing purposes.
 
-        This helper method ensures that the required foreign key dependencies 
-        (plant name, family, and location) exist using get_or_create methods. 
-        It is typically used in test setups to populate the database with sample data.
+        This helper method delegates to `insert_plant_by_names` to create
+        a plant entry with default or provided sample values. It is typically
+        used in test setups to populate the database with known, repeatable data.
 
         Args:
             plant_name_en (str): English name of the plant. Defaults to "SamplePlant".
             plant_name_ja (str): Japanese name of the plant. Defaults to "サンプル".
-            plant_date (date | None, optional): Date the plant was observed. Defaults to today if None.
-            image_path (str): Filename of the plant image. Defaults to "sample.jpg".
-            botanical_name (str): Scientific (botanical) name of the plant. Defaults to "Plantus exampleus".
+            family_name_en (str): English family name. Defaults to "Sampleaceae".
+            family_name_ja (str): Japanese family name. Defaults to "サンプル科".
+            location_name_en (str): English location name. Defaults to "TestTown".
+            location_name_ja (str): Japanese location name. Defaults to "テスト町".
+            image_path (str): Path or filename of the plant image. Defaults to "sample.jpg".
+            botanical_name (str): Scientific (botanical) name. Defaults to "Plantus exampleus".
+            plant_date (date | None, optional): Date the plant was recorded.
+                Defaults to today if None.
 
         Returns:
-            None
+            int: The ID of the newly inserted dummy plant.
         """
-        plant_name_id = self.db.get_or_create_plant(plant_name_en, plant_name_ja)
-        family_id = self.db.get_or_create_family("Sampleaceae", "サンプル科")
-        location_id = self.db.get_or_create_location("TestTown", "テスト町")
-
-        return self.db.insert_plant(
-            plant_name_id=plant_name_id,
-            family_id=family_id,
-            location_id=location_id,
+        return self.db.insert_plant_by_names(
+            plant_name_en=plant_name_en,
+            plant_name_ja=plant_name_ja,
+            family_name_en=family_name_en,
+            family_name_ja=family_name_ja,
+            location_name_en=location_name_en,
+            location_name_ja=location_name_ja,
             image_path=image_path,
             botanical_name=botanical_name,
             plant_date=plant_date or date.today(),
@@ -431,7 +439,7 @@ class TestPlantDB(unittest.TestCase):
 
         self.assertFalse(
             any(plant["plant_id"] == plant_id for plant in plants_after_delete),
-            f"Plant with id {plant_id} was not deleted"
+            msg=f"Plant with id {plant_id} was not deleted"
     )
 
     def test_delete_nonexistent_plant_raises_error(self):

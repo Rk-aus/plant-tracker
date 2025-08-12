@@ -87,6 +87,18 @@ class TestPlantDB(unittest.TestCase):
         Insert a plant using insert_plant_by_names with all existing names,
         and verify the returned plant ID is a positive integer.
         """
+        self.db.insert_plant_by_names(
+            plant_name_en="ExistingPlant",
+            plant_name_ja="既存植物",
+            family_name_en="ExistingFamily",
+            family_name_ja="既存科",
+            location_name_en="ExistingLocation",
+            location_name_ja="既存場所",
+            image_path=f"preload_path_{uuid.uuid4()}.jpg",
+            botanical_name=f"PreloadBotanicalName_{uuid.uuid4()}",
+            plant_date=date.today(),
+        )
+
         plant_id = self.db.insert_plant_by_names(
             plant_name_en="ExistingPlant",
             plant_name_ja="既存植物",
@@ -123,8 +135,14 @@ class TestPlantDB(unittest.TestCase):
             botanical_name=f"NewBotanicalName{unique_suffix}",
             plant_date=date.today(),
         )
-        self.assertIsInstance(plant_id, int)
-        self.assertGreater(plant_id, 0)
+        self.assertIsInstance(
+            plant_id, int,
+            msg=f"Expected plant_id to be an integer, but got type: {type(plant_id).__name__}"
+        )
+        self.assertGreater(
+            plant_id, 0,
+            msg=f"Expected plant_id to be a positive integer, but got: {plant_id}"
+        )
 
     def test_insert_bad_types(self):
         """Passing bad argument types raises TypeError."""

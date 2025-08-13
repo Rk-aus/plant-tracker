@@ -148,7 +148,7 @@ class TestPlantDB(unittest.TestCase):
         """Passing bad argument types raises TypeError."""
         with self.assertRaises(TypeError):
             self.db.insert_plant_by_names(
-                plant_name_en=123,  # should be str
+                plant_name_en=123,  
                 plant_name_ja="既存植物",
                 family_name_en="既存科",
                 family_name_ja="既存科",
@@ -163,7 +163,6 @@ class TestPlantDB(unittest.TestCase):
         botanical_name = "UniqueBotanicalNameForTest"
         image_path = "unique_image_path_for_test.jpg"
 
-        # Insert the first time successfully
         self.db.insert_plant_by_names(
             plant_name_en="Plant1",
             plant_name_ja="植物1",
@@ -176,7 +175,6 @@ class TestPlantDB(unittest.TestCase):
             plant_date=date.today(),
         )
 
-        # Duplicate botanical_name should raise UniqueBotanicalNameError
         with self.assertRaises(UniqueBotanicalNameError):
             self.db.insert_plant_by_names(
                 plant_name_en="Plant2",
@@ -190,7 +188,6 @@ class TestPlantDB(unittest.TestCase):
                 plant_date=date.today(),
             )
 
-        # Duplicate image_path should raise UniqueImagePathError
         with self.assertRaises(UniqueImagePathError):
             self.db.insert_plant_by_names(
                 plant_name_en="Plant3",

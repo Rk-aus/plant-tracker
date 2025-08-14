@@ -1,4 +1,5 @@
 import psycopg2 as pg2
+from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 from datetime import date
 from typing import Optional
@@ -51,12 +52,12 @@ class PlantDB:
         self,
         plant_name_en: str,
         plant_name_ja: str,
+        botanical_name: str,
         family_name_en: str,
         family_name_ja: str,
         location_name_en: str,
         location_name_ja: str,
         image_path: str,
-        botanical_name: str,
         plant_date: Optional[date] = None,
     ) -> int:
         """
@@ -68,12 +69,12 @@ class PlantDB:
         Args:
             plant_name_en (str): English plant name.
             plant_name_ja (str): Japanese plant name.
+            botanical_name (str): Botanical name of the plant.
             family_name_en (str): English family name.
             family_name_ja (str): Japanese family name.
             location_name_en (str): English location name.
             location_name_ja (str): Japanese location name.
             image_path (str): Path to the plant image.
-            botanical_name (str): Botanical name of the plant.
             plant_date (Optional[date]): Date the plant was recorded. Defaults to today.
 
         Raises:
@@ -85,7 +86,7 @@ class PlantDB:
         Returns:
             int: The ID of the newly inserted plant.
         """
-        plant_name_id = self.get_or_create_plant(plant_name_en=plant_name_en, plant_name_ja=plant_name_ja)
+        plant_name_id = self.get_or_create_plant(plant_name_en=plant_name_en, plant_name_ja=plant_name_ja, botanical_name=botanical_name)
         family_id = self.get_or_create_family(family_name_en=family_name_en, family_name_ja=family_name_ja)
         location_id = self.get_or_create_location(location_name_en=location_name_en, location_name_ja=location_name_ja)
 
@@ -94,7 +95,6 @@ class PlantDB:
             family_id=family_id,
             location_id=location_id,
             image_path=image_path,
-            botanical_name=botanical_name,
             plant_date=plant_date,
         )
 
@@ -104,7 +104,6 @@ class PlantDB:
         family_id: int,
         location_id: int,
         image_path: str,
-        botanical_name: str,
         plant_date: Optional[date] = None,
     ) -> int:
         """
@@ -115,7 +114,6 @@ class PlantDB:
             family_id (int): Foreign key to families table.
             location_id (int): Foreign key to locations table.
             image_path (str): Path to the plant image.
-            botanical_name (str): Botanical name of the plant.
             plant_date (date | None, optional): Date associated with the plant. Defaults to today if None.
 
         Raises:
@@ -131,7 +129,6 @@ class PlantDB:
         validate_positive_int(family_id, "family_id")
         validate_positive_int(location_id, "location_id")
         image_path = validate_and_strip_str(image_path, "image_path")
-        botanical_name = validate_and_strip_str(botanical_name, "botanical_name")
         validate_date_or_none(plant_date, "plant_date")
 
         try:
@@ -143,9 +140,8 @@ class PlantDB:
                         family_id,
                         location_id,
                         image_path,
-                        botanical_name,
                         plant_date
-                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s)
                     RETURNING plant_id;
                     """,
                     (
@@ -153,7 +149,6 @@ class PlantDB:
                         family_id,
                         location_id,
                         image_path,
-                        botanical_name,
                         plant_date or date.today(),
                     ),
                 )
@@ -167,12 +162,12 @@ class PlantDB:
         plant_id: int,
         plant_name_en: str,
         plant_name_ja: str,
+        botanical_name: str,
         family_name_en: str,
         family_name_ja: str,
         location_name_en: str,
         location_name_ja: str,
         image_path: str,
-        botanical_name: str,
         plant_date: Optional[date] = None,
     ) -> None:
         """
@@ -185,12 +180,12 @@ class PlantDB:
             plant_id (int): Unique identifier of the plant to update.
             plant_name_en (str): English plant name.
             plant_name_ja (str): Japanese plant name.
+            botanical_name (str): Botanical name of the plant.
             family_name_en (str): English family name.
             family_name_ja (str): Japanese family name.
             location_name_en (str): English location name.
             location_name_ja (str): Japanese location name.
             image_path (str): Path to the plant image.
-            botanical_name (str): Botanical name of the plant.
             plant_date (date | None, optional): Date associated with the plant. Defaults to today if None.
 
         Raises:
@@ -200,7 +195,7 @@ class PlantDB:
             UniqueImagePathError: If the image path already exists.
                 These are subclasses of UniquePlantConstraintError.
         """
-        plant_name_id = self.get_or_create_plant(plant_name_en=plant_name_en, plant_name_ja=plant_name_ja)
+        plant_name_id = self.get_or_create_plant(plant_name_en=plant_name_en, plant_name_ja=plant_name_ja, botanical_name=botanical_name)
         family_id = self.get_or_create_family(family_name_en=family_name_en, family_name_ja=family_name_ja)
         location_id = self.get_or_create_location(location_name_en=location_name_en, location_name_ja=location_name_ja)
 
@@ -221,7 +216,6 @@ class PlantDB:
         family_id: int,
         location_id: int,
         image_path: str,
-        botanical_name: str,
         plant_date: Optional[date] = None,
     ) -> None:
         """
@@ -233,7 +227,6 @@ class PlantDB:
             family_id (int): Foreign key to families table.
             location_id (int): Foreign key to locations table.
             image_path (str): Path to the plant image.
-            botanical_name (str): Botanical name of the plant.
             plant_date (date | None, optional): Date associated with the plant. Defaults to None.
 
         Raises:
@@ -248,7 +241,6 @@ class PlantDB:
         validate_positive_int(family_id, "family_id")
         validate_positive_int(location_id, "location_id")
         validate_and_strip_str(image_path, "image_path")
-        validate_and_strip_str(botanical_name, "botanical_name")
         validate_date_or_none(plant_date, "plant_date")
 
         try:
@@ -261,7 +253,6 @@ class PlantDB:
                         family_id = %s,
                         location_id = %s,
                         image_path = %s,
-                        botanical_name = %s,
                         plant_date = %s
                     WHERE plant_id = %s;
                     """,
@@ -270,7 +261,6 @@ class PlantDB:
                         family_id,
                         location_id,
                         image_path,
-                        botanical_name,
                         plant_date or date.today(),
                         plant_id,
                     ),
@@ -322,11 +312,11 @@ class PlantDB:
                 - plant_id (int)
                 - plant_name_en (str)
                 - plant_name_ja (str)
+                - botanical_name (str)
                 - family_name_en (str)
                 - family_name_ja (str)
                 - location_name_en (str)
                 - location_name_ja (str)
-                - botanical_name (str)
                 - image_path (str)
                 - plant_date (date)
 
@@ -381,11 +371,11 @@ class PlantDB:
                 - plant_id (int)
                 - plant_name_en (str)
                 - plant_name_ja (str)
+                - botanical_name (str)
                 - family_name_en (str)
                 - family_name_ja (str)
                 - location_name_en (str)
                 - location_name_ja (str)
-                - botanical_name (str)
                 - image_path (str)
                 - plant_date (date)
 
@@ -410,17 +400,50 @@ class PlantDB:
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query_sql, (f"%{query}%",))
             return cur.fetchall()
+
+    def get_or_create_plant(self, plant_name_en: str, plant_name_ja: str, botanical_name: str) -> int:
+        """Get or insert a plant name entry with botanical name."""
+        plant_name_en = validate_and_strip_str(plant_name_en, "plant_name_en")
+        plant_name_ja = validate_and_strip_str(plant_name_ja, "plant_name_ja")
+        botanical_name = validate_and_strip_str(botanical_name, "botanical_name")
+
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT plant_name_id FROM plant_names
+                WHERE plant_name_en = %s AND plant_name_ja = %s AND botanical_name = %s;
+            """, (plant_name_en, plant_name_ja, botanical_name))
+            result = cur.fetchone()
+            if result:
+                return result[0]
+
+            try:
+                cur.execute("""
+                    INSERT INTO plant_names (plant_name_en, plant_name_ja, botanical_name)
+                    VALUES (%s, %s, %s)
+                    RETURNING plant_name_id;
+                """, (plant_name_en, plant_name_ja, botanical_name))
+            except pg2.errors.UniqueViolation as e:
+                handle_unique_violation(e)
+
+            return cur.fetchone()[0]
         
-    def _get_or_create(self, table: str, id_column: str, name_en_col: str, name_ja_col: str,
-                    name_en_val: str, name_ja_val: str) -> int:
+    def _get_or_create(
+        self,
+        table: str,
+        id_column: str,
+        name_en_col: str,
+        name_ja_col: str,
+        name_en_val: str,
+        name_ja_val: str
+    ) -> int:
         """
         Internal helper to retrieve or insert a record into a bilingual lookup table.
 
         Args:
-            table (str): Table name (e.g., 'plant_names').
-            id_column (str): ID column to return (e.g., 'plant_id').
-            name_en_col (str): English name column (e.g., 'plant_name_en').
-            name_ja_col (str): Japanese name column (e.g., 'plant_name_ja').
+            table (str): Table name (e.g., 'families').
+            id_column (str): ID column to return (e.g., 'family_id').
+            name_en_col (str): English name column (e.g., 'family_name_en').
+            name_ja_col (str): Japanese name column (e.g., 'family_name_ja').
             name_en_val (str): English name value.
             name_ja_val (str): Japanese name value.
 
@@ -435,41 +458,39 @@ class PlantDB:
         name_ja_val = validate_and_strip_str(name_ja_val, name_ja_col)
 
         with self.conn.cursor() as cur:
-            cur.execute(
-                f"""
-                SELECT {id_column} FROM {table}
+            select_query = sql.SQL("""
+                SELECT {id_column}
+                FROM {table}
                 WHERE {name_en_col} = %s AND {name_ja_col} = %s;
-                """,
-                (name_en_val, name_ja_val)
+            """).format(
+                id_column=sql.Identifier(id_column),
+                table=sql.Identifier(table),
+                name_en_col=sql.Identifier(name_en_col),
+                name_ja_col=sql.Identifier(name_ja_col)
             )
+
+            cur.execute(select_query, (name_en_val, name_ja_val))
             result = cur.fetchone()
             if result:
                 return result[0]
 
+            insert_query = sql.SQL("""
+                INSERT INTO {table} ({name_en_col}, {name_ja_col})
+                VALUES (%s, %s)
+                RETURNING {id_column};
+            """).format(
+                table=sql.Identifier(table),
+                name_en_col=sql.Identifier(name_en_col),
+                name_ja_col=sql.Identifier(name_ja_col),
+                id_column=sql.Identifier(id_column)
+            )
+
             try:
-                cur.execute(
-                    f"""
-                    INSERT INTO {table} ({name_en_col}, {name_ja_col})
-                    VALUES (%s, %s)
-                    RETURNING {id_column};
-                    """,
-                    (name_en_val, name_ja_val)
-                )
+                cur.execute(insert_query, (name_en_val, name_ja_val))
             except pg2.errors.UniqueViolation as e:
                 handle_unique_violation(e)
 
             return cur.fetchone()[0]
-
-    def get_or_create_plant(self, plant_name_en: str,  plant_name_ja: str) -> int:
-        """Get or insert a plant name entry."""
-        return self._get_or_create(
-            table="plant_names",
-            id_column="plant_name_id",
-            name_en_col="plant_name_en",
-            name_ja_col="plant_name_ja",
-            name_en_val=plant_name_en,
-            name_ja_val=plant_name_ja,
-        )
 
     def get_or_create_family(self, family_name_en: str, family_name_ja: str) -> int:
         """Get or insert a family name entry."""
@@ -492,10 +513,3 @@ class PlantDB:
             name_en_val=location_name_en,
             name_ja_val=location_name_ja,
         )
-
-
-
-    
-
-
-

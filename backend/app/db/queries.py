@@ -3,11 +3,11 @@ PLANT_SELECT_BASE = """
         plants.plant_id,
         plant_names.plant_name_en,
         plant_names.plant_name_ja,
+        plant_names.botanical_name,
         families.family_name_en,
         families.family_name_ja,
         locations.location_name_en,
         locations.location_name_ja,
-        plants.botanical_name,
         plants.image_path,
         plants.plant_date
     FROM plants

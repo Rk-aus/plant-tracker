@@ -7,7 +7,6 @@ from app.exceptions import (
     PlantNotFoundError,
     InvalidLanguageError,
     InvalidSearchFieldError,
-    UniqueBotanicalNameError,
     UniqueImagePathError,
 )
 
@@ -160,44 +159,30 @@ class TestPlantDB(unittest.TestCase):
 
     def test_insert_constraint_violation(self):
         """Inserting duplicates triggers the expected custom exceptions."""
-        botanical_name = "UniqueBotanicalNameForTest"
         image_path = "unique_image_path_for_test.jpg"
 
         self.db.insert_plant_by_names(
             plant_name_en="Plant1",
             plant_name_ja="植物1",
+            botanical_name="UniqueBotanicalName",
             family_name_en="Family1",
             family_name_ja="科1",
             location_name_en="Location1",
             location_name_ja="場所1",
             image_path=image_path,
-            botanical_name=botanical_name,
             plant_date=date.today(),
         )
-
-        with self.assertRaises(UniqueBotanicalNameError):
-            self.db.insert_plant_by_names(
-                plant_name_en="Plant2",
-                plant_name_ja="植物2",
-                family_name_en="Family2",
-                family_name_ja="科2",
-                location_name_en="Location2",
-                location_name_ja="場所2",
-                image_path="another_unique_image.jpg",
-                botanical_name=botanical_name,
-                plant_date=date.today(),
-            )
 
         with self.assertRaises(UniqueImagePathError):
             self.db.insert_plant_by_names(
                 plant_name_en="Plant3",
                 plant_name_ja="植物3",
+                botanical_name="AnotherUniqueBotanicalName",
                 family_name_en="Family3",
                 family_name_ja="科3",
                 location_name_en="Location3",
                 location_name_ja="場所3",
                 image_path=image_path,
-                botanical_name="AnotherUniqueBotanicalName",
                 plant_date=date.today(),
             )
 
@@ -274,17 +259,7 @@ class TestPlantDB(unittest.TestCase):
                         case["botanical_name"],
                         case["plant_date"],
                     )
-
-    def test_insert_duplicate_botanical_name_raises(self):
-        """
-        Test that inserting a plant with a duplicate botanical name raises UniqueBotanicalNameError.
-        """
-        botanical_name = "UniqueBotanicalName"
-        self.insert_dummy_plant(plant_name_en="Plant1", botanical_name=botanical_name)
-
-        with self.assertRaises(UniqueBotanicalNameError):
-            self.insert_dummy_plant(plant_name_en="Plant2", plant_name_ja="サンプル２", image_path="sample2.jpg", botanical_name=botanical_name)
-
+                    
     def test_insert_duplicate_image_path_raises(self):
         """
         Test that inserting a plant with a duplicate image path raises UniqueImagePathError.

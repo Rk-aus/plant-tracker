@@ -5,15 +5,15 @@ from datetime import date
 from typing import Optional
 from .connection import get_connection
 from app.utils.validators.db_validators import (
-    validate_positive_int,
+    validate_positive_int, 
     validate_and_strip_str,
     validate_date_or_none,
-    handle_unique_violation,
 )
 from app.exceptions import (
     PlantNotFoundError,
     InvalidLanguageError,
     InvalidSearchFieldError,
+    UniqueImagePathError,
 )
 from app.db.queries import (
     GET_ALL_PLANTS,
@@ -79,9 +79,7 @@ class PlantDB:
 
         Raises:
             TypeError: If any input is of an incorrect type or format.
-            UniqueBotanicalNameError: If the botanical name already exists.
             UniqueImagePathError: If the image path already exists.
-                These are subclasses of UniquePlantConstraintError.
 
         Returns:
             int: The ID of the newly inserted plant.
@@ -118,9 +116,7 @@ class PlantDB:
 
         Raises:
             TypeError: If any input is of an incorrect type or format.
-            UniqueBotanicalNameError: If the botanical name already exists.
             UniqueImagePathError: If the image path already exists.
-                These are subclasses of UniquePlantConstraintError.
 
         Returns:
             int: The ID of the newly inserted plant.
@@ -154,8 +150,8 @@ class PlantDB:
                 )
                 plant_id = cur.fetchone()[0]
                 return plant_id
-        except pg2.errors.UniqueViolation as e:
-            handle_unique_violation(e)
+        except pg2.errors.UniqueViolation:
+            raise UniqueImagePathError("Image path already exists.")
 
     def update_plant_by_names(
         self,
@@ -191,9 +187,7 @@ class PlantDB:
         Raises:
             TypeError: If any input is invalid.
             PlantNotFoundError: If no plant exists with the specified plant_id.
-            UniqueBotanicalNameError: If the botanical name already exists.
             UniqueImagePathError: If the image path already exists.
-                These are subclasses of UniquePlantConstraintError.
         """
         plant_name_id = self.get_or_create_plant(plant_name_en=plant_name_en, plant_name_ja=plant_name_ja, botanical_name=botanical_name)
         family_id = self.get_or_create_family(family_name_en=family_name_en, family_name_ja=family_name_ja)
@@ -232,9 +226,7 @@ class PlantDB:
         Raises:
             TypeError: If any input is of an incorrect type or format.
             PlantNotFoundError: If no plant exists with the specified plant_id.
-            UniqueBotanicalNameError: If the botanical name already exists.
             UniqueImagePathError: If the image path already exists.
-                These are subclasses of UniquePlantConstraintError.
         """
         validate_positive_int(plant_id, "plant_id")  
         validate_positive_int(plant_name_id, "plant_name_id")
@@ -267,8 +259,8 @@ class PlantDB:
                 )
             if cur.rowcount == 0:
                 raise PlantNotFoundError(plant_id, f"No plant found with ID {plant_id}.")
-        except pg2.errors.UniqueViolation as e:
-            handle_unique_violation(e)
+        except pg2.errors.UniqueViolation:
+            raise UniqueImagePathError("Image path already exists.")
 
     def delete_plant(self, plant_id: int) -> None:
         """
@@ -422,8 +414,8 @@ class PlantDB:
                     VALUES (%s, %s, %s)
                     RETURNING plant_name_id;
                 """, (plant_name_en, plant_name_ja, botanical_name))
-            except pg2.errors.UniqueViolation as e:
-                handle_unique_violation(e)
+            except pg2.errors.UniqueViolation:
+                raise UniqueImagePathError("Image path already exists.")
 
             return cur.fetchone()[0]
         
@@ -487,8 +479,8 @@ class PlantDB:
 
             try:
                 cur.execute(insert_query, (name_en_val, name_ja_val))
-            except pg2.errors.UniqueViolation as e:
-                handle_unique_violation(e)
+            except pg2.errors.UniqueViolation:
+                raise UniqueImagePathError("Image path already exists.")
 
             return cur.fetchone()[0]
 

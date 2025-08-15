@@ -29,12 +29,12 @@ class TestPlantDB(unittest.TestCase):
         self,
         plant_name_en: str = "SamplePlant",
         plant_name_ja: str = "サンプル",
+        botanical_name: str = "Plantus exampleus",
         family_name_en: str = "Sampleaceae",
         family_name_ja: str = "サンプル科",
         location_name_en: str = "TestTown",
         location_name_ja: str = "テスト町",
         image_path: str = "sample.jpg",
-        botanical_name: str = "Plantus exampleus",
         plant_date: Optional[date] = None,
     ):
         """
@@ -86,29 +86,34 @@ class TestPlantDB(unittest.TestCase):
         Insert a plant using insert_plant_by_names with all existing names,
         and verify the returned plant ID is a positive integer.
         """
+        first_path = f"preload_path_{uuid.uuid4()}.jpg"
+        second_path = f"happy_path_{uuid.uuid4()}.jpg"
+
         self.db.insert_plant_by_names(
             plant_name_en="ExistingPlant",
             plant_name_ja="既存植物",
+            botanical_name="ExistingBotanicalName",
             family_name_en="ExistingFamily",
             family_name_ja="既存科",
             location_name_en="ExistingLocation",
             location_name_ja="既存場所",
             image_path=f"preload_path_{uuid.uuid4()}.jpg",
-            botanical_name=f"PreloadBotanicalName_{uuid.uuid4()}",
             plant_date=date.today(),
         )
 
         plant_id = self.db.insert_plant_by_names(
             plant_name_en="ExistingPlant",
             plant_name_ja="既存植物",
+            botanical_name="ExistingBotanicalName",
             family_name_en="ExistingFamily",
             family_name_ja="既存科",
             location_name_en="ExistingLocation",
             location_name_ja="既存場所",
             image_path=f"happy_path_{uuid.uuid4()}.jpg", 
-            botanical_name=f"HappyBotanicalName_{uuid.uuid4()}",
             plant_date=date.today(),
         )
+        print(f"image_path 1: {first_path}")
+        print(f"image_path 2: {second_path}")
         self.assertIsInstance(
             plant_id, int,
             msg=f"Expected plant_id to be an integer, but got type: {type(plant_id).__name__}"
@@ -122,16 +127,16 @@ class TestPlantDB(unittest.TestCase):
 
     def test_insert_name_creation(self):
         """Name creation: new names are created as needed."""
-        unique_suffix = str(date.today().timestamp()).replace('.', '')
+        unique_suffix = str(uuid.uuid4())
         plant_id = self.db.insert_plant_by_names(
             plant_name_en=f"NewPlant{unique_suffix}",
             plant_name_ja=f"新規植物{unique_suffix}",
+            botanical_name=f"NewBotanicalName{unique_suffix}",
             family_name_en=f"NewFamily{unique_suffix}",
             family_name_ja=f"新規科{unique_suffix}",
             location_name_en=f"NewLocation{unique_suffix}",
             location_name_ja=f"新規場所{unique_suffix}",
             image_path=f"new_path_{unique_suffix}.jpg",
-            botanical_name=f"NewBotanicalName{unique_suffix}",
             plant_date=date.today(),
         )
         self.assertIsInstance(
@@ -193,23 +198,14 @@ class TestPlantDB(unittest.TestCase):
         with self.assertRaises(ValueError, msg="Expected ValueError when image_path is empty"):
             self.db.insert_plant(1, 1, 1, "", "BotanicalName")
 
-    def test_insert_empty_botanical_name(self):
-        """
-        Test that inserting a plant with an empty botanical name raises a ValueError.
-        """
-        with self.assertRaises(ValueError, msg="Expected ValueError when botanical_name is empty"):
-            self.db.insert_plant(1, 1, 1, "some/path.jpg", "")
-
     def test_insert_blank_strings(self):
         """
-        Test that inserting a plant with blank (whitespace only) image path or botanical name
+        Test that inserting a plant with blank (whitespace only) image path
         raises a ValueError.
         """
         with self.assertRaises(ValueError, msg="Expected ValueError when image_path is blank"):
-            self.db.insert_plant(1, 1, 1, "   ", "BotanicalName")
+            self.db.insert_plant(1, 1, 1, "   ")
 
-        with self.assertRaises(ValueError, msg="Expected ValueError when botanical_name is blank"):
-            self.db.insert_plant(1, 1, 1, "some/path.jpg", "   ")
 
     def test_insert_invalid_ids(self):
         """
@@ -417,8 +413,8 @@ class TestPlantDB(unittest.TestCase):
 
     def test_update_plant_success(self):
         """Test that update_plant correctly updates all fields for an existing plant."""
-        plant_name_id_old = self.db.get_or_create_plant("OldName", "古い")
-        plant_name_id_new = self.db.get_or_create_plant("NewName", "新しい")
+        plant_name_id_old = self.db.get_or_create_plant("OldName", "古い", "OldBotanical")
+        plant_name_id_new = self.db.get_or_create_plant("NewName", "新しい", "NewBotanical")
         family_id_old = self.db.get_or_create_family("OldFamily", "古い科")
         family_id_new = self.db.get_or_create_family("NewFamily", "新しい科")
         location_id_old = self.db.get_or_create_location("OldCity", "旧市")
@@ -429,7 +425,6 @@ class TestPlantDB(unittest.TestCase):
             family_id=family_id_old,
             location_id=location_id_old,
             image_path="old.jpg",
-            botanical_name="OldBotanical",
             plant_date=date(2022, 5, 1),
         )
         plant = self.db.search_plants("OldName", "name")[0]
@@ -441,7 +436,6 @@ class TestPlantDB(unittest.TestCase):
             family_id=family_id_new,
             location_id=location_id_new,
             image_path="new.jpg",
-            botanical_name="NewBotanical",
             plant_date=date(2023, 6, 1),
         )
 
@@ -459,7 +453,7 @@ class TestPlantDB(unittest.TestCase):
 
     def test_update_nonexistent_id(self):
         """Test that update_plant raises PlantNotFoundError when the plant_id does not exist."""
-        plant_name_id = self.db.get_or_create_plant("Ghost", "ゴースト")
+        plant_name_id = self.db.get_or_create_plant("Ghost", "ゴースト", "Ghostus")
         family_id = self.db.get_or_create_family("Phantomaceae", "幻科")
         location_id = self.db.get_or_create_location("Void", "虚無")
 
@@ -470,13 +464,12 @@ class TestPlantDB(unittest.TestCase):
                 family_id=family_id,
                 location_id=location_id,
                 image_path="ghost.jpg",
-                botanical_name="Ghostus",
                 plant_date=date(2022, 10, 31),
             )
 
     def test_update_invalid_id_type(self):
         """Test that update_plant raises TypeError when given a non-integer plant_id."""
-        plant_name_id = self.db.get_or_create_plant("NewName", "新しい")
+        plant_name_id = self.db.get_or_create_plant("NewName", "新しい", "Plantus novus")
         family_id = self.db.get_or_create_family("NewFamily", "新しい科")
         location_id = self.db.get_or_create_location("NewCity", "新市")
 
@@ -890,10 +883,13 @@ class TestPlantDB(unittest.TestCase):
 
     def test_get_or_create_plant_with_empty_name(self):
         with self.assertRaises(ValueError, msg="Expected ValueError when plant_name_en is empty"):
-            self.db.get_or_create_plant("", "サンプル")  
+            self.db.get_or_create_plant("", "サンプル", "Plantus exampleus")  
         
         with self.assertRaises(ValueError, msg="Expected ValueError when plant_name_ja is empty"):
-            self.db.get_or_create_plant("Sample", "")  
+            self.db.get_or_create_plant("Sample", "", "Plantus exampleus")  
+
+        with self.assertRaises(ValueError, msg="Expected ValueError when plant_name_ja is empty"):
+            self.db.get_or_create_plant("Sample", "サンプル", "")  
 
 if __name__ == "__main__":
     unittest.main()

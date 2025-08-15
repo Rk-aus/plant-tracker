@@ -1,8 +1,6 @@
 from datetime import date
 from typing import Any
 from app.exceptions import (
-    UniquePlantConstraintError, 
-    UniqueBotanicalNameError, 
     UniqueImagePathError,
     )
 
@@ -75,24 +73,3 @@ def validate_date_or_none(value: Any, name: str = "date") -> None:
     """
     if value is not None and not isinstance(value, date):
         raise TypeError(f"{name} must be a datetime.date object or None. Got {type(value).__name__}.")
-
-def handle_unique_violation(e: Exception) -> None:
-    """
-    Parses a database UniqueViolation exception and raises a custom error.
-
-    Args:
-        e (Exception): The original exception from the database.
-
-    Raises:
-        UniqueBotanicalNameError: If the error is due to botanical name uniqueness.
-        UniqueImagePathError: If the error is due to image path uniqueness.
-        UniquePlantConstraintError: For other unique constraint violations.
-    """
-    error_msg = str(e)
-
-    if "unique_botanical_name" in error_msg:
-        raise UniqueBotanicalNameError("Botanical name already exists.") from e
-    elif "unique_image_path" in error_msg:
-        raise UniqueImagePathError("Image path already exists.") from e
-    else:
-        raise UniquePlantConstraintError("Unique constraint violation.") from e

@@ -70,25 +70,20 @@ class TestPlantDB(unittest.TestCase):
             botanical_name=botanical_name,
             plant_date=plant_date or date.today(),
         )
+    
 
-    def test_insert(self):
-        """
-        Test inserting a plant and verify it can be found by search.
-        Uses a unique plant name to avoid collisions.
-        """
-        unique_name = f"TestPlant-{uuid.uuid4()}"
-        self.insert_dummy_plant(unique_name)
-        results = self.db.search_plants("TestPlant", "name")
-        self.assertIn(unique_name, [row["plant_name_en"] for row in results], msg=f"Inserted plant '{unique_name}' not found in search results.")
+
+    def mismatch_msg(field, expected, actual):
+        return f"{field} mismatch: expected {expected!r}, but got {actual!r}"
+
+
+
 
     def test_insert_plant_by_names(self):
         """
         Insert a plant using insert_plant_by_names with all existing names,
         and verify the returned plant ID is a positive integer.
         """
-        first_path = f"preload_path_{uuid.uuid4()}.jpg"
-        second_path = f"happy_path_{uuid.uuid4()}.jpg"
-
         self.db.insert_plant_by_names(
             plant_name_en="ExistingPlant",
             plant_name_ja="既存植物",
@@ -112,8 +107,7 @@ class TestPlantDB(unittest.TestCase):
             image_path=f"happy_path_{uuid.uuid4()}.jpg", 
             plant_date=date.today(),
         )
-        print(f"image_path 1: {first_path}")
-        print(f"image_path 2: {second_path}")
+
         self.assertIsInstance(
             plant_id, int,
             msg=f"Expected plant_id to be an integer, but got type: {type(plant_id).__name__}"
@@ -122,8 +116,6 @@ class TestPlantDB(unittest.TestCase):
             plant_id, 0,
             msg=f"Expected plant_id to be a positive integer, but got: {plant_id}"
         )
-
-
 
     def test_insert_name_creation(self):
         """Name creation: new names are created as needed."""
@@ -180,16 +172,47 @@ class TestPlantDB(unittest.TestCase):
 
         with self.assertRaises(UniqueImagePathError):
             self.db.insert_plant_by_names(
-                plant_name_en="Plant3",
-                plant_name_ja="植物3",
+                plant_name_en="Plant2",
+                plant_name_ja="植物2",
                 botanical_name="AnotherUniqueBotanicalName",
-                family_name_en="Family3",
-                family_name_ja="科3",
-                location_name_en="Location3",
-                location_name_ja="場所3",
+                family_name_en="Family2",
+                family_name_ja="科2",
+                location_name_en="Location2",
+                location_name_ja="場所2",
                 image_path=image_path,
                 plant_date=date.today(),
             )
+
+    def test_insert_defaults_to_today(self):
+        plant_id = self.db.insert_plant_by_names(
+            plant_name_en="TodayPlant",
+            plant_name_ja="今日植物",
+            botanical_name="DefaultDateBotanical",
+            family_name_en="TodayFamily",
+            family_name_ja="今日科",
+            location_name_en="TodayLocation",
+            location_name_ja="今日場所",
+            image_path=f"today_path_{uuid.uuid4()}.jpg",
+        )
+        row = self.db.get_plant_details(plant_id)  
+        self.assertEqual(
+            row["plant_date"],
+            date.today(),
+            msg=(
+                f"plant_date mismatch: expected {date.today()!r}, "
+                f"but received {row['plant_date']!r}"
+            ),
+        )
+
+    def test_insert(self):
+        """
+        Test inserting a plant and verify it can be found by search.
+        Uses a unique plant name to avoid collisions.
+        """
+        unique_name = f"TestPlant-{uuid.uuid4()}"
+        self.insert_dummy_plant(unique_name)
+        results = self.db.search_plants("TestPlant", "name")
+        self.assertIn(unique_name, [row["plant_name_en"] for row in results], msg=f"Inserted plant '{unique_name}' not found in search results.")
 
     def test_insert_empty_image_path(self):
         """

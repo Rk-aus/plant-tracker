@@ -70,14 +70,9 @@ class TestPlantDB(unittest.TestCase):
             botanical_name=botanical_name,
             plant_date=plant_date or date.today(),
         )
-    
-
 
     def mismatch_msg(field, expected, actual):
         return f"{field} mismatch: expected {expected!r}, but got {actual!r}"
-
-
-
 
     def test_insert_plant_by_names(self):
         """
@@ -184,6 +179,7 @@ class TestPlantDB(unittest.TestCase):
             )
 
     def test_insert_defaults_to_today(self):
+        today = date.today()
         plant_id = self.db.insert_plant_by_names(
             plant_name_en="TodayPlant",
             plant_name_ja="今日植物",
@@ -194,15 +190,8 @@ class TestPlantDB(unittest.TestCase):
             location_name_ja="今日場所",
             image_path=f"today_path_{uuid.uuid4()}.jpg",
         )
-        row = self.db.get_plant_details(plant_id)  
-        self.assertEqual(
-            row["plant_date"],
-            date.today(),
-            msg=(
-                f"plant_date mismatch: expected {date.today()!r}, "
-                f"but received {row['plant_date']!r}"
-            ),
-        )
+        plant_date = self.db.get_plant_details(plant_id)["plant_date"]
+        self.assertEqual(plant_date, today, msg=self.mismatch_msg("plant_date", today, plant_date))
 
     def test_insert(self):
         """
@@ -302,11 +291,7 @@ class TestPlantDB(unittest.TestCase):
             msg=f"Expected at least one search result, but got 0 results for query 'Lily'"
         )
         plant_date = results[0]['plant_date']
-        self.assertEqual(
-            plant_date,
-            today,
-            msg=f"Expected plant_date to be '{today}', but got '{plant_date}'"
-        )
+        self.assertEqual(plant_date, today, msg=self.mismatch_msg("plant_date", today, plant_date))
 
     def test_insert_custom_date(self):
         """
@@ -321,11 +306,7 @@ class TestPlantDB(unittest.TestCase):
             msg=f"Expected at least one search result, but got 0 results for query 'Iris'"
         )
         plant_date = results[0]['plant_date']
-        self.assertEqual(
-            plant_date,
-            custom_date,
-            msg=f"Expected plant_date to be '{custom_date}', but got '{plant_date}'"
-        )
+        self.assertEqual(plant_date, custom_date, msg=self.mismatch_msg("plant_date", custom_date, plant_date))
 
     def test_insert_long_botanical_name(self):
         """
@@ -334,11 +315,7 @@ class TestPlantDB(unittest.TestCase):
         long_name = "A" * 255
         plant_id = self.insert_dummy_plant(botanical_name=long_name)
         botanical_name = self.db.get_plant_details(plant_id)["botanical_name"]
-        self.assertEqual(
-            botanical_name,
-            long_name,
-            msg=f"Expected botanical_name to be '{long_name}', but got '{botanical_name}'"
-        )
+        self.assertEqual(botanical_name, long_name, msg=self.mismatch_msg("botanical_name", long_name, botanical_name))
 
     def test_insert_long_image_path(self):
         """
@@ -347,11 +324,7 @@ class TestPlantDB(unittest.TestCase):
         long_path = "A" * 255    
         plant_id = self.insert_dummy_plant(image_path=long_path)
         image_path = self.db.get_plant_details(plant_id)["image_path"]
-        self.assertEqual(
-            image_path,
-            long_path,
-            msg=f"Expected image_path to be '{long_path}', but got '{image_path}'"
-        )
+        self.assertEqual(image_path, long_path, msg=self.mismatch_msg("image_path", long_path, image_path))
     
     def test_insert_image_path_with_special_characters(self):
         """
@@ -360,11 +333,7 @@ class TestPlantDB(unittest.TestCase):
         special_path = "plant@#$.jpg"
         plant_id = self.insert_dummy_plant(image_path=special_path)
         image_path = self.db.get_plant_details(plant_id)["image_path"]
-        self.assertEqual(
-            image_path,
-            special_path,
-            msg=f"Expected image_path to be '{special_path}', but got '{image_path}'"
-        )
+        self.assertEqual(image_path, special_path, msg=self.mismatch_msg("image_path", special_path, image_path))
 
     def test_insert_image_path_with_emoji(self):
         """
@@ -373,11 +342,7 @@ class TestPlantDB(unittest.TestCase):
         emoji_path = "images/plants/🌿_leaf.png"
         plant_id = self.insert_dummy_plant(image_path=emoji_path)
         image_path = self.db.get_plant_details(plant_id)["image_path"]
-        self.assertEqual(
-            image_path,
-            emoji_path,
-            msg=f"Expected image_path to be '{emoji_path}', but got '{image_path}'"
-        )
+        self.assertEqual(image_path, emoji_path, msg=self.mismatch_msg("image_path", emoji_path, image_path))
 
     def test_insert_image_path_with_url(self):
         """
@@ -386,11 +351,7 @@ class TestPlantDB(unittest.TestCase):
         url_path = "http://example.com/plant.jpg"
         plant_id = self.insert_dummy_plant(image_path=url_path)
         image_path = self.db.get_plant_details(plant_id)["image_path"]
-        self.assertEqual(
-            image_path,
-            url_path,
-            msg=f"Expected image_path to be '{url_path}', but got '{image_path}'"
-        )
+        self.assertEqual(image_path, url_path, msg=self.mismatch_msg("image_path", url_path, image_path))
 
     def test_trim_whitespace_in_botanical_name(self):
         """
@@ -400,11 +361,7 @@ class TestPlantDB(unittest.TestCase):
         name_with_whitespace = "  Rosa chinensis  "
         plant_id = self.insert_dummy_plant(botanical_name=name_with_whitespace)
         botanical_name = self.db.get_plant_details(plant_id)["botanical_name"]
-        self.assertEqual(
-            botanical_name,
-            clean_name,
-            msg=f"Expected botanical_name to be '{clean_name}', but got '{botanical_name}'"
-        )
+        self.assertEqual(botanical_name, clean_name, msg=self.mismatch_msg("botanical_name", clean_name, botanical_name))
 
     def test_trim_whitespace_in_plant_name(self):
         """
@@ -414,11 +371,7 @@ class TestPlantDB(unittest.TestCase):
         plant_name_with_whitespace = "\t Chinese rose \n"
         plant_id = self.insert_dummy_plant(plant_name_en=plant_name_with_whitespace)
         plant_name_en = self.db.get_plant_details(plant_id)["plant_name_en"]
-        self.assertEqual(
-            plant_name_en,
-            clean_name,
-            msg=f"Expected plant_name_en to be '{clean_name}', but got '{plant_name_en}'"
-        )
+        self.assertEqual(plant_name_en, clean_name, msg=self.mismatch_msg("plant_name_en", clean_name, plant_name_en))
 
     def test_trim_whitespace_in_image_path(self):
         """
@@ -428,11 +381,7 @@ class TestPlantDB(unittest.TestCase):
         path_with_whitespace = "  images/rose.jpg  "
         plant_id = self.insert_dummy_plant(image_path=path_with_whitespace)
         image_path = self.db.get_plant_details(plant_id)["image_path"]
-        self.assertEqual(
-            image_path,
-            clean_path,
-            msg=f"Expected image_path to be '{clean_path}', but got '{image_path}'"
-        )
+        self.assertEqual(image_path, clean_path, msg=self.mismatch_msg("image_path", clean_path, image_path))
 
     def test_update_plant_success(self):
         """Test that update_plant correctly updates all fields for an existing plant."""
@@ -463,16 +412,17 @@ class TestPlantDB(unittest.TestCase):
         )
 
         updated = self.db.search_plants("NewName", "name")[0]
-        self.assertEqual(updated["plant_id"], plant_id, msg=f"Expected plant_id to be '{plant_id}', but got '{updated['plant_id']}'")
-        self.assertEqual(updated["plant_name_en"], "NewName", msg=f"Expected plant_name_en to be 'NewName', but got '{updated['plant_name_en']}'")
-        self.assertEqual(updated["plant_name_ja"], "新しい", msg=f"Expected plant_name_ja to be '新しい', but got '{updated['plant_name_ja']}'")
-        self.assertEqual(updated["family_name_en"], "NewFamily", msg=f"Expected family_name_en to be 'NewFamily', but got '{updated['family_name_en']}'")
-        self.assertEqual(updated["family_name_ja"], "新しい科", msg=f"Expected family_name_ja to be '新しい科', but got '{updated['family_name_ja']}'")
-        self.assertEqual(updated["location_name_en"], "NewCity", msg=f"Expected location_name_en to be 'NewCity', but got '{updated['location_name_en']}'")
+        self.assertEqual(updated["plant_id"], plant_id, msg=self.mismatch_msg("plant_id", plant_id, updated["plant_id"]))
+        self.assertEqual(updated["plant_name_en"], "NewName", msg=self.mismatch_msg("plant_name_en", "NewName", updated["plant_name_en"]))
+        self.assertEqual(updated["plant_name_ja"], "新しい", msg=self.mismatch_msg("plant_name_ja", "新しい", updated["plant_name_ja"]))
+        self.assertEqual(updated["family_name_en"], "NewFamily", msg=self.mismatch_msg("family_name_en", "NewFamily", updated["family_name_en"]))
+        self.assertEqual(updated["family_name_ja"], "新しい科", msg=self.mismatch_msg("family_name_ja", "新しい科", updated["family_name_ja"]))
+        self.assertEqual(updated["location_name_en"], "NewCity", msg=self.mismatch_msg("location_name_en", "NewCity", updated["location_name_en"]))
         self.assertEqual(updated["location_name_ja"], "新市", msg=f"Expected location_name_ja to be '新市', but got '{updated['location_name_ja']}'")
-        self.assertEqual(updated["image_path"], "new.jpg", msg=f"Expected image_path to be 'new.jpg', but got '{updated['image_path']}'")
-        self.assertEqual(updated["botanical_name"], "NewBotanical", msg=f"Expected botanical_name to be 'NewBotanical', but got '{updated['botanical_name']}'")
-        self.assertEqual(updated["plant_date"], date(2023, 6, 1), msg=f"Expected plant_date to be '{date(2023, 6, 1)}', but got '{updated['plant_date']}'")
+        self.assertEqual(updated["location_name_ja"], "新市", msg=self.mismatch_msg("location_name_ja", "新市", updated["location_name_ja"]))
+        self.assertEqual(updated["image_path"], "new.jpg", msg=self.mismatch_msg("image_path", "new.jpg", updated["image_path"]))
+        self.assertEqual(updated["botanical_name"], "NewBotanical", msg=self.mismatch_msg("botanical_name", "NewBotanical", updated["botanical_name"]))
+        self.assertEqual(updated["plant_date"], date(2023, 6, 1), msg=self.mismatch_msg("plant_date", date(2023, 6, 1), updated["plant_date"]))
 
     def test_update_nonexistent_id(self):
         """Test that update_plant raises PlantNotFoundError when the plant_id does not exist."""
@@ -673,9 +623,9 @@ class TestPlantDB(unittest.TestCase):
 
         details = self.db.get_plant_details(plant_id)
 
-        self.assertEqual(details["plant_name_en"], "Daisy", msg=f"Expected plant_name_en to be 'Daisy', but got '{details['plant_name_en']}'")
-        self.assertEqual(details["family_name_en"], "Sampleaceae", msg=f"Expected family_name_en to be 'Sampleaceae', but got '{details['family_name_en']}'")
-        self.assertEqual(details["location_name_en"], "TestTown", msg=f"Expected location_name_en to be 'TestTown', but got '{details['location_name_en']}'")
+        self.assertEqual(details["plant_name_en"], "Daisy", msg=self.mismatch_msg("plant_name_en", "Daisy", details["plant_name_en"]))
+        self.assertEqual(details["family_name_en"], "Sampleaceae", msg=self.mismatch_msg("family_name_en", "Sampleaceae", details["family_name_en"]))
+        self.assertEqual(details["location_name_en"], "TestTown", msg=self.mismatch_msg("location_name_en", "TestTown", details["location_name_en"]))
 
     def test_get_plant_details_nonexistent(self):
         """

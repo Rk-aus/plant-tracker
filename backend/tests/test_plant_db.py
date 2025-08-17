@@ -71,7 +71,23 @@ class TestPlantDB(unittest.TestCase):
             plant_date=plant_date or date.today(),
         )
 
-    def mismatch_msg(field, expected, actual):
+    def mismatch_msg(field: str, expected: object, actual: object) -> str:
+        """
+        Generate a standardized mismatch message for assertions or validations.
+
+        This helper is typically used in testing or validation contexts to
+        produce clear and consistent error messages when a value does not
+        match the expected result.
+
+        Args:
+            field (str): The name of the field or attribute being checked.
+            expected (object): The expected value.
+            actual (object): The actual value observed.
+
+        Returns:
+            str: A formatted message in the form
+                "{field} mismatch: expected {expected!r}, but got {actual!r}".
+        """
         return f"{field} mismatch: expected {expected!r}, but got {actual!r}"
 
     def test_insert_plant_by_names(self):
@@ -385,33 +401,32 @@ class TestPlantDB(unittest.TestCase):
 
     def test_update_plant_success(self):
         """Test that update_plant correctly updates all fields for an existing plant."""
-        plant_name_id_old = self.db.get_or_create_plant("OldName", "古い", "OldBotanical")
-        plant_name_id_new = self.db.get_or_create_plant("NewName", "新しい", "NewBotanical")
-        family_id_old = self.db.get_or_create_family("OldFamily", "古い科")
-        family_id_new = self.db.get_or_create_family("NewFamily", "新しい科")
-        location_id_old = self.db.get_or_create_location("OldCity", "旧市")
-        location_id_new = self.db.get_or_create_location("NewCity", "新市")
-
-        self.db.insert_plant(
-            plant_name_id=plant_name_id_old,
-            family_id=family_id_old,
-            location_id=location_id_old,
+        plant_id = self.db.insert_plant_by_names(
+            plant_name_en="OldName",
+            plant_name_ja= "古い",
+            botanical_name="OldBotanical",
+            family_name_en="OldFamily",
+            family_name_ja="古い科",
+            location_name_en="OldCity",
+            location_name_ja="旧市",
             image_path="old.jpg",
             plant_date=date(2022, 5, 1),
         )
-        plant = self.db.search_plants("OldName", "name")[0]
-        plant_id = plant["plant_id"]
 
-        self.db.update_plant(
+        self.db.update_plant_by_names(
             plant_id=plant_id,
-            plant_name_id=plant_name_id_new,
-            family_id=family_id_new,
-            location_id=location_id_new,
+            plant_name_en="NewName",
+            plant_name_ja= "新しい",
+            botanical_name="NewBotanical",
+            family_name_en="NewFamily",
+            family_name_ja="新しい科",
+            location_name_en="NewCity",
+            location_name_ja="新市",
             image_path="new.jpg",
             plant_date=date(2023, 6, 1),
         )
 
-        updated = self.db.search_plants("NewName", "name")[0]
+        updated = self.db.get_plant_details(plant_id)
         self.assertEqual(updated["plant_id"], plant_id, msg=self.mismatch_msg("plant_id", plant_id, updated["plant_id"]))
         self.assertEqual(updated["plant_name_en"], "NewName", msg=self.mismatch_msg("plant_name_en", "NewName", updated["plant_name_en"]))
         self.assertEqual(updated["plant_name_ja"], "新しい", msg=self.mismatch_msg("plant_name_ja", "新しい", updated["plant_name_ja"]))
@@ -477,6 +492,149 @@ class TestPlantDB(unittest.TestCase):
                 "Botanical",
                 date.today(),
             )
+
+
+
+    def test_update_with_duplicate_image_path_raises(self):
+        """Test that update_plant raises UniqueImagePathError when image_path conflicts with another row."""
+        plant_name_id1 = self.db.get_or_create_plant("Plant1", "プラント1", "Plantus unus")
+        family_id = self.db.get_or_create_family("FamilyA", "科A")
+        location_id = self.db.get_or_create_location("CityA", "都市A")
+
+        plant_id1 = self.db.insert_plant(plant_name_id1, family_id, location_id, "img1.jpg", "BotA")
+        plant_name_id2 = self.db.get_or_create_plant("Plant2", "プラント2", "Plantus duo")
+        plant_id2 = self.db.insert_plant(plant_name_id2, family_id, location_id, "img2.jpg", "BotB")
+
+        with self.assertRaises(UniqueImagePathError):
+            self.db.update_plant(
+                plant_id2,
+                plant_name_id2,
+                family_id,
+                location_id,
+                image_path="img1.jpg",  
+                botanical_name="BotB-updated",
+                plant_date=date(2024, 5, 1),
+            )
+
+    def test_update_with_none_date_defaults_to_today(self):
+        """Test that update_plant_by_names defaults plant_date to today when None is provided."""
+        plant_name_id = self.db.get_or_create_plant("Plant3", "プラント3", "Plantus tres")
+        family_id = self.db.get_or_create_family("FamilyB", "科B")
+        location_id = self.db.get_or_create_location("CityB", "都市B")
+
+        plant_id = self.db.insert_plant(plant_name_id, family_id, location_id, "img3.jpg", "BotC")
+
+        today = date.today()
+        self.db.update_plant_by_names(
+            "Plant3",
+            "FamilyB",
+            "CityB",
+            image_path="img3.jpg",
+            botanical_name="BotC-updated",
+            plant_date=None,  # should default
+        )
+
+        updated = self.db.get_plant(plant_id)
+        self.assertEqual(updated["plant_date"], today)
+
+    def test_update_does_not_modify_on_error(self):
+        """Test that update_plant does not modify row when an error (UniqueImagePathError) occurs."""
+        plant_name_id1 = self.db.get_or_create_plant("Plant4", "プラント4", "Plantus quattuor")
+        family_id = self.db.get_or_create_family("FamilyC", "科C")
+        location_id = self.db.get_or_create_location("CityC", "都市C")
+
+        plant_id1 = self.db.insert_plant(plant_name_id1, family_id, location_id, "img4.jpg", "BotD")
+
+        plant_name_id2 = self.db.get_or_create_plant("Plant5", "プラント5", "Plantus quinque")
+        plant_id2 = self.db.insert_plant(plant_name_id2, family_id, location_id, "img5.jpg", "BotE")
+
+        # Capture original state before conflict
+        original = self.db.get_plant(plant_id2)
+
+        with self.assertRaises(UniqueImagePathError):
+            self.db.update_plant(
+                plant_id2,
+                plant_name_id2,
+                family_id,
+                location_id,
+                image_path="img4.jpg",  # conflict with plant_id1
+                botanical_name="BotE-updated",
+                plant_date=date(2025, 1, 1),
+            )
+
+        # Ensure rollback -> unchanged
+        after = self.db.get_plant(plant_id2)
+        self.assertEqual(after, original)
+
+    def test_update_by_names_matches_update_by_ids(self):
+        """Test consistency: update_plant_by_names produces the same result as update_plant."""
+        plant_name_id = self.db.get_or_create_plant("Plant6", "プラント6", "Plantus sex")
+        family_id = self.db.get_or_create_family("FamilyD", "科D")
+        location_id = self.db.get_or_create_location("CityD", "都市D")
+
+        plant_id = self.db.insert_plant(plant_name_id, family_id, location_id, "img6.jpg", "BotF")
+
+        # Update via IDs
+        self.db.update_plant(
+            plant_id,
+            plant_name_id,
+            family_id,
+            location_id,
+            image_path="img6-new.jpg",
+            botanical_name="BotF-updated",
+            plant_date=date(2024, 12, 25),
+        )
+        result_by_id = self.db.get_plant(plant_id)
+
+        # Reset image path for retry
+        self.db.update_plant(
+            plant_id,
+            plant_name_id,
+            family_id,
+            location_id,
+            image_path="img6.jpg",
+            botanical_name="BotF",
+            plant_date=date(2024, 6, 1),
+        )
+
+        # Update via names
+        self.db.update_plant_by_names(
+            "Plant6",
+            "FamilyD",
+            "CityD",
+            image_path="img6-new.jpg",
+            botanical_name="BotF-updated",
+            plant_date=date(2024, 12, 25),
+        )
+        result_by_names = self.db.get_plant(plant_id)
+
+        self.assertEqual(result_by_id, result_by_names)
+
+    def test_update_with_long_or_special_char_names(self):
+        """Test update_plant handles long strings, quotes, and emojis in names."""
+        long_name = "X" * 255
+        special_name = "Plant 'Ω🌱🚀'"
+        plant_name_id = self.db.get_or_create_plant(special_name, "スペシャル", long_name)
+        family_id = self.db.get_or_create_family("FamilyE", "科E")
+        location_id = self.db.get_or_create_location("CityE", "都市E")
+
+        plant_id = self.db.insert_plant(plant_name_id, family_id, location_id, "img7.jpg", "BotG")
+
+        self.db.update_plant(
+            plant_id,
+            plant_name_id,
+            family_id,
+            location_id,
+            image_path="img7-new.jpg",
+            botanical_name="BotG-updated 🌿",
+            plant_date=date(2025, 5, 5),
+        )
+
+        updated = self.db.get_plant(plant_id)
+        self.assertIn("🌿", updated["botanical_name"])
+        self.assertEqual(updated["image_path"], "img7-new.jpg")
+
+
 
     def test_delete_existing_plant(self):
         """

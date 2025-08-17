@@ -199,7 +199,6 @@ class PlantDB:
             family_id=family_id,
             location_id=location_id,
             image_path=image_path,
-            botanical_name=botanical_name,
             plant_date=plant_date,
         )
 

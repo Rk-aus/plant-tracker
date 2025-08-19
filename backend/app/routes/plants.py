@@ -13,9 +13,9 @@ db = None
 def init_db():
     global db
     if db is None:
-        from backend.app.db.plant_dao import PlantDB
+        from backend.app.db.plant_dao import PlantDAO
 
-        db = PlantDB()
+        db = PlantDAO()
 
 
 @plants_bp.route("/plants", methods=["POST"])

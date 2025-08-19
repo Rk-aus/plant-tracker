@@ -3,7 +3,7 @@ from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 from datetime import date
 from typing import Optional
-from .connection import get_connection
+from .connections import get_connection
 from app.utils.validators.db_validators import (
     validate_positive_int, 
     validate_and_strip_str,

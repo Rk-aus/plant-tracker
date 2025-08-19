@@ -1,12 +1,30 @@
 import psycopg2 as pg2
-from typing import Optional
+from psycopg2 import sql
+from psycopg2.extras import RealDictCursor
 from datetime import date
-
+from typing import Optional
+from backend.app.db.connections import get_connection, release_connection
 from app.db.plant_dao import PlantDAO
-from app.exceptions import PlantNotFoundError, UniqueImagePathError
+from app.utils.validators.db_validators import (
+    validate_positive_int, 
+    validate_and_strip_str,
+    validate_date_or_none,
+)
+from app.exceptions import (
+    PlantNotFoundError,
+    InvalidLanguageError,
+    InvalidSearchFieldError,
+    UniqueImagePathError,
+)
+from app.db.queries import (
+    GET_ALL_PLANTS,
+    GET_PLANT_DETAILS,
+    LIST_PLANTS_BY_DATE,
+    SEARCH_PLANTS,
+)
 
 class PlantService:
-    def __init__(self, conn,  plant_dao: PlantDAO):
+    def __init__(self, conn, plant_dao: PlantDAO):
         self.conn = conn
         self.plant_dao = plant_dao
 

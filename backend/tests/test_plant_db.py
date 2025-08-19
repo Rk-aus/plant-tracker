@@ -2,7 +2,7 @@ import unittest
 import uuid
 from datetime import date
 from typing import Optional
-from app.db.plant_db_class import PlantDB
+from backend.app.db.plant_dao import PlantDAO
 from app.exceptions import (
     PlantNotFoundError,
     InvalidLanguageError,
@@ -18,7 +18,7 @@ class TestPlantDB(unittest.TestCase):
     they return appropriate values when the database is empty or contains data.
     """
     def setUp(self):
-        self.db = PlantDB()
+        self.db = PlantDAO()
         self.db.conn.autocommit = False
 
     def tearDown(self):

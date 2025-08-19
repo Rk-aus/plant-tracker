@@ -22,7 +22,7 @@ from app.db.queries import (
     SEARCH_PLANTS,
 )
 
-class PlantDB:
+class PlantDAO:
     """
     A class to interact with the plants database.
 

@@ -51,3 +51,20 @@ def close_all_connections():
     """
     if _connection_pool:
         _connection_pool.closeall()
+
+class DatabaseConnection:
+    """
+    Context manager for PostgreSQL connections using the connection pool.
+    
+    Example:
+        with DatabaseConnection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+    """
+
+    def __enter__(self):
+        self.conn = get_connection()
+        return self.conn
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        release_connection(self.conn)

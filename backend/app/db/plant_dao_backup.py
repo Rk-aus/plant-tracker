@@ -1,20 +1,9 @@
-"""
-PlantService module.
-
-This module defines the PlantService class, which provides a service layer
-between the application (e.g., routes, controllers) and the data access layer (DAOs).
-It contains business logic for managing plants, ensuring that database
-connections are handled consistently and that higher-level components do not
-need to interact with DAOs directly.
-"""
-
 import psycopg2 as pg2
 from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 from datetime import date
 from typing import Optional
-from backend.app.db.connections import get_connection, release_connection
-from app.db.plant_dao import PlantDAO
+from .connections import get_connection
 from app.utils.validators.db_validators import (
     validate_positive_int, 
     validate_and_strip_str,
@@ -33,21 +22,32 @@ from app.db.queries import (
     SEARCH_PLANTS,
 )
 
-class PlantService:
+class PlantDAO:
     """
-    Service layer for plant-related operations.
+    A class to interact with the plants database.
 
-    The PlantService class provides methods to query, insert, and manage
-    plant data. It acts as an intermediary between API
-    endpoints and the PlantDAO, handling database connections and
-    transaction boundaries.
-
-    Each method:
-        - Opens a database connection.
-        - Instantiates the appropriate DAO.
-        - Calls DAO methods to perform the requested operation.
-        - Releases the connection after completion.
+    This class provides methods for querying and modifying plant-related data
+    using a PostgreSQL connection.
     """
+    def __init__(self):
+        """
+        Initializes the PlantDB instance and establishes a connection to the PostgreSQL database
+        using credentials from environment variables.
+        """
+        self.conn = get_connection()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc_value, _traceback):
+        self.conn.close()
+
+    def close(self):
+        """
+        Close the database connection manually.
+        """
+        self.conn.close()
+    
     def insert_plant_by_names(
         self,
         plant_name_en: str,
@@ -60,53 +60,41 @@ class PlantService:
         image_path: str,
         plant_date: Optional[date] = None,
     ) -> int:
-        """Insert a new plant into the database using name values instead of foreign key IDs.
+        """
+        Insert a new plant using name values instead of foreign key IDs.
 
-        This method ensures that related records (plant name, family, location) exist, 
-        retrieving their IDs if present or creating them if missing. It then inserts 
-        the new plant record with the resolved foreign key IDs.
+        This method retrieves or creates the necessary foreign key IDs
+        for plant name, family, and location, and then inserts the plant.
 
         Args:
             plant_name_en (str): English plant name.
             plant_name_ja (str): Japanese plant name.
-            botanical_name (str): Botanical (scientific) name of the plant.
+            botanical_name (str): Botanical name of the plant.
             family_name_en (str): English family name.
             family_name_ja (str): Japanese family name.
             location_name_en (str): English location name.
             location_name_ja (str): Japanese location name.
             image_path (str): Path to the plant image.
-            plant_date (Optional[date], optional): Date the plant was recorded. 
-                Defaults to today.
+            plant_date (Optional[date]): Date the plant was recorded. Defaults to today.
 
         Raises:
-            TypeError: If an argument is of the wrong type or format.
+            TypeError: If any input is of an incorrect type or format.
             UniqueImagePathError: If the image path already exists.
 
         Returns:
             int: The ID of the newly inserted plant.
         """
-        conn = get_connection()
-        try:
-            plant_dao = PlantDAO(conn)
+        plant_name_id = self.get_or_create_plant(plant_name_en=plant_name_en, plant_name_ja=plant_name_ja, botanical_name=botanical_name)
+        family_id = self.get_or_create_family(family_name_en=family_name_en, family_name_ja=family_name_ja)
+        location_id = self.get_or_create_location(location_name_en=location_name_en, location_name_ja=location_name_ja)
 
-            plant_name_id = self.get_or_create_plant(plant_name_en, plant_name_ja, botanical_name, conn)
-            family_id = self.get_or_create_family(family_name_en, family_name_ja, conn)
-            location_id = self.get_or_create_location(location_name_en, location_name_ja, conn)
-
-            plant_id = plant_dao.insert_plant(
-                plant_name_id=plant_name_id,
-                family_id=family_id,
-                location_id=location_id,
-                image_path=image_path,
-                plant_date=plant_date,
-            )
-            conn.commit()
-            return plant_id
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            release_connection(conn)
+        return self.insert_plant(
+            plant_name_id=plant_name_id,
+            family_id=family_id,
+            location_id=location_id,
+            image_path=image_path,
+            plant_date=plant_date,
+        )
 
     def insert_plant(
         self,

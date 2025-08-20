@@ -3,7 +3,7 @@ from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 from datetime import date
 from typing import Optional
-from .connections import get_connection
+from app.db.connections import DatabaseConnection
 from app.utils.validators.db_validators import (
     validate_positive_int, 
     validate_and_strip_str,
@@ -29,73 +29,9 @@ class PlantDAO:
     This class provides methods for querying and modifying plant-related data
     using a PostgreSQL connection.
     """
-    def __init__(self):
-        """
-        Initializes the PlantDB instance and establishes a connection to the PostgreSQL database
-        using credentials from environment variables.
-        """
-        self.conn = get_connection()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, _exc_type, _exc_value, _traceback):
-        self.conn.close()
-
-    def close(self):
-        """
-        Close the database connection manually.
-        """
-        self.conn.close()
+    def __init__(self, conn):
+        self.conn = conn
     
-    def insert_plant_by_names(
-        self,
-        plant_name_en: str,
-        plant_name_ja: str,
-        botanical_name: str,
-        family_name_en: str,
-        family_name_ja: str,
-        location_name_en: str,
-        location_name_ja: str,
-        image_path: str,
-        plant_date: Optional[date] = None,
-    ) -> int:
-        """
-        Insert a new plant using name values instead of foreign key IDs.
-
-        This method retrieves or creates the necessary foreign key IDs
-        for plant name, family, and location, and then inserts the plant.
-
-        Args:
-            plant_name_en (str): English plant name.
-            plant_name_ja (str): Japanese plant name.
-            botanical_name (str): Botanical name of the plant.
-            family_name_en (str): English family name.
-            family_name_ja (str): Japanese family name.
-            location_name_en (str): English location name.
-            location_name_ja (str): Japanese location name.
-            image_path (str): Path to the plant image.
-            plant_date (Optional[date]): Date the plant was recorded. Defaults to today.
-
-        Raises:
-            TypeError: If any input is of an incorrect type or format.
-            UniqueImagePathError: If the image path already exists.
-
-        Returns:
-            int: The ID of the newly inserted plant.
-        """
-        plant_name_id = self.get_or_create_plant(plant_name_en=plant_name_en, plant_name_ja=plant_name_ja, botanical_name=botanical_name)
-        family_id = self.get_or_create_family(family_name_en=family_name_en, family_name_ja=family_name_ja)
-        location_id = self.get_or_create_location(location_name_en=location_name_en, location_name_ja=location_name_ja)
-
-        return self.insert_plant(
-            plant_name_id=plant_name_id,
-            family_id=family_id,
-            location_id=location_id,
-            image_path=image_path,
-            plant_date=plant_date,
-        )
-
     def insert_plant(
         self,
         plant_name_id: int,
@@ -121,37 +57,27 @@ class PlantDAO:
         Returns:
             int: The ID of the newly inserted plant.
         """
-        validate_positive_int(plant_name_id, "plant_name_id")
-        validate_positive_int(family_id, "family_id")
-        validate_positive_int(location_id, "location_id")
-        image_path = validate_and_strip_str(image_path, "image_path")
-        validate_date_or_none(plant_date, "plant_date")
-
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO plants (
-                        plant_name_id,
-                        family_id,
-                        location_id,
-                        image_path,
-                        plant_date
-                    ) VALUES (%s, %s, %s, %s, %s)
-                    RETURNING plant_id;
-                    """,
-                    (
-                        plant_name_id,
-                        family_id,
-                        location_id,
-                        image_path,
-                        plant_date or date.today(),
-                    ),
-                )
-                plant_id = cur.fetchone()[0]
-                return plant_id
-        except pg2.errors.UniqueViolation:
-            raise UniqueImagePathError("Image path already exists.")
+        with DatabaseConnection() as conn:
+            try:
+                with conn.cursor() as cur: 
+                    cur.execute(
+                        """
+                        INSERT INTO plants (
+                            plant_name_id, family_id, location_id, image_path, plant_date
+                        ) VALUES (%s, %s, %s, %s, %s)
+                        RETURNING plant_id;
+                        """,
+                        (
+                            plant_name_id,
+                            family_id,
+                            location_id,
+                            image_path,
+                            plant_date or date.today(),
+                        ),
+                    )
+                    return cur.fetchone()[0]
+            except pg2.errors.UniqueViolation:
+                raise UniqueImagePathError("Image path already exists.")
 
     def update_plant_by_names(
         self,

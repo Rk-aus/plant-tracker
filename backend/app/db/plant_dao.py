@@ -3,7 +3,6 @@ from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 from datetime import date
 from typing import Optional
-from app.db.connections import DatabaseConnection
 from app.utils.validators.db_validators import (
     validate_positive_int, 
     validate_and_strip_str,
@@ -57,76 +56,20 @@ class PlantDAO:
         Returns:
             int: The ID of the newly inserted plant.
         """
-        with DatabaseConnection() as conn:
-            try:
-                with conn.cursor() as cur: 
-                    cur.execute(
-                        """
-                        INSERT INTO plants (
-                            plant_name_id, family_id, location_id, image_path, plant_date
-                        ) VALUES (%s, %s, %s, %s, %s)
-                        RETURNING plant_id;
-                        """,
-                        (
-                            plant_name_id,
-                            family_id,
-                            location_id,
-                            image_path,
-                            plant_date or date.today(),
-                        ),
-                    )
-                    return cur.fetchone()[0]
-            except pg2.errors.UniqueViolation:
-                raise UniqueImagePathError("Image path already exists.")
-
-    def update_plant_by_names(
-        self,
-        plant_id: int,
-        plant_name_en: str,
-        plant_name_ja: str,
-        botanical_name: str,
-        family_name_en: str,
-        family_name_ja: str,
-        location_name_en: str,
-        location_name_ja: str,
-        image_path: str,
-        plant_date: Optional[date] = None,
-    ) -> None:
-        """
-        Update a plant record by specifying plant, family, and location names.
-
-        This method resolves or creates IDs for plant name, family, and location
-        by their English and Japanese names, then calls the core update_plant method.
-
-        Args:
-            plant_id (int): Unique identifier of the plant to update.
-            plant_name_en (str): English plant name.
-            plant_name_ja (str): Japanese plant name.
-            botanical_name (str): Botanical name of the plant.
-            family_name_en (str): English family name.
-            family_name_ja (str): Japanese family name.
-            location_name_en (str): English location name.
-            location_name_ja (str): Japanese location name.
-            image_path (str): Path to the plant image.
-            plant_date (date | None, optional): Date associated with the plant. Defaults to today if None.
-
-        Raises:
-            TypeError: If any input is invalid.
-            PlantNotFoundError: If no plant exists with the specified plant_id.
-            UniqueImagePathError: If the image path already exists.
-        """
-        plant_name_id = self.get_or_create_plant(plant_name_en=plant_name_en, plant_name_ja=plant_name_ja, botanical_name=botanical_name)
-        family_id = self.get_or_create_family(family_name_en=family_name_en, family_name_ja=family_name_ja)
-        location_id = self.get_or_create_location(location_name_en=location_name_en, location_name_ja=location_name_ja)
-
-        self.update_plant(
-            plant_id=plant_id,
-            plant_name_id=plant_name_id,
-            family_id=family_id,
-            location_id=location_id,
-            image_path=image_path,
-            plant_date=plant_date,
-        )
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO plants (
+                        plant_name_id, family_id, location_id, image_path, plant_date
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    RETURNING plant_id;
+                    """,
+                    (plant_name_id, family_id, location_id, image_path, plant_date or date.today()),
+                )
+                return cur.fetchone()[0]
+        except pg2.errors.UniqueViolation:
+            raise UniqueImagePathError("Image path already exists.")
 
     def update_plant(
         self,

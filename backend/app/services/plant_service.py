@@ -15,6 +15,7 @@ from datetime import date
 from typing import Optional
 from backend.app.db.connections import get_connection, release_connection
 from app.db.plant_dao import PlantDAO
+from app.db.connections import DatabaseConnection
 from app.utils.validators.db_validators import (
     validate_positive_int, 
     validate_and_strip_str,
@@ -85,34 +86,33 @@ class PlantService:
         Returns:
             int: The ID of the newly inserted plant.
         """
-        conn = get_connection()
-        try:
-            plant_dao = PlantDAO(conn)
+        image_path = validate_and_strip_str(image_path, "image_path")
+        validate_date_or_none(plant_date, "plant_date")
 
-            plant_name_id = self.get_or_create_plant(plant_name_en, plant_name_ja, botanical_name, conn)
-            family_id = self.get_or_create_family(family_name_en, family_name_ja, conn)
-            location_id = self.get_or_create_location(location_name_en, location_name_ja, conn)
-            
-            validate_positive_int(plant_name_id, "plant_name_id")
-            validate_positive_int(family_id, "family_id")
-            validate_positive_int(location_id, "location_id")
-            image_path = validate_and_strip_str(image_path, "image_path")
-            validate_date_or_none(plant_date, "plant_date")
+        with DatabaseConnection() as conn:
+            try:
+                plant_dao = PlantDAO(conn)
 
-            plant_id = plant_dao.insert_plant(
-                plant_name_id=plant_name_id,
-                family_id=family_id,
-                location_id=location_id,
-                image_path=image_path,
-                plant_date=plant_date,
-            )
-            conn.commit()
-            return plant_id
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            release_connection(conn)
+                plant_name_id = self.get_or_create_plant(plant_name_en, plant_name_ja, botanical_name, conn)
+                family_id = self.get_or_create_family(family_name_en, family_name_ja, conn)
+                location_id = self.get_or_create_location(location_name_en, location_name_ja, conn)
+                
+                validate_positive_int(plant_name_id, "plant_name_id")
+                validate_positive_int(family_id, "family_id")
+                validate_positive_int(location_id, "location_id")
+
+                plant_id = plant_dao.insert_plant(
+                    plant_name_id=plant_name_id,
+                    family_id=family_id,
+                    location_id=location_id,
+                    image_path=image_path,
+                    plant_date=plant_date,
+                )
+                conn.commit()
+                return plant_id
+            except Exception:
+                conn.rollback()
+                raise
 
     def update_plant_by_names(
         self,
@@ -151,87 +151,34 @@ class PlantService:
             PlantNotFoundError: If no plant exists with the specified plant_id.
             UniqueImagePathError: If the image path already exists.
         """
-        conn = get_connection()
-        try:
-            plant_dao = PlantDAO(conn)
-
-            plant_name_id = self.get_or_create_plant(plant_name_en, plant_name_ja, botanical_name, conn)
-            family_id = self.get_or_create_family(family_name_en, family_name_ja, conn)
-            location_id = self.get_or_create_location(location_name_en, location_name_ja, conn)
-
-            plant_dao.update_plant(
-                plant_id=plant_id,
-                plant_name_id=plant_name_id,
-                family_id=family_id,
-                location_id=location_id,
-                image_path=image_path,
-                plant_date=plant_date,
-            )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            release_connection(conn)
-
-    def update_plant(
-        self,
-        plant_id: int,
-        plant_name_id: int,
-        family_id: int,
-        location_id: int,
-        image_path: str,
-        plant_date: Optional[date] = None,
-    ) -> None:
-        """
-        Update a plant record with new data.
-
-        Args:
-            plant_id (int): Unique identifier of the plant to update.
-            plant_name_id (int): Foreign key to plant_names table.
-            family_id (int): Foreign key to families table.
-            location_id (int): Foreign key to locations table.
-            image_path (str): Path to the plant image.
-            plant_date (date | None, optional): Date associated with the plant. Defaults to None.
-
-        Raises:
-            TypeError: If any input is of an incorrect type or format.
-            PlantNotFoundError: If no plant exists with the specified plant_id.
-            UniqueImagePathError: If the image path already exists.
-        """
         validate_positive_int(plant_id, "plant_id")  
-        validate_positive_int(plant_name_id, "plant_name_id")
-        validate_positive_int(family_id, "family_id")
-        validate_positive_int(location_id, "location_id")
-        validate_and_strip_str(image_path, "image_path")
+        image_path = validate_and_strip_str(image_path, "image_path")
         validate_date_or_none(plant_date, "plant_date")
+        
+        with DatabaseConnection() as conn:
+            try:
+                plant_dao = PlantDAO(conn)
 
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(
-                    """
-                    UPDATE plants
-                    SET
-                        plant_name_id = %s,
-                        family_id = %s,
-                        location_id = %s,
-                        image_path = %s,
-                        plant_date = %s
-                    WHERE plant_id = %s;
-                    """,
-                    (
-                        plant_name_id,
-                        family_id,
-                        location_id,
-                        image_path,
-                        plant_date or date.today(),
-                        plant_id,
-                    ),
+                plant_name_id = self.get_or_create_plant(plant_name_en, plant_name_ja, botanical_name, conn)
+                family_id = self.get_or_create_family(family_name_en, family_name_ja, conn)
+                location_id = self.get_or_create_location(location_name_en, location_name_ja, conn)
+                
+                validate_positive_int(plant_name_id, "plant_name_id")
+                validate_positive_int(family_id, "family_id")
+                validate_positive_int(location_id, "location_id")
+
+                plant_dao.update_plant(
+                    plant_id=plant_id,
+                    plant_name_id=plant_name_id,
+                    family_id=family_id,
+                    location_id=location_id,
+                    image_path=image_path,
+                    plant_date=plant_date,
                 )
-            if cur.rowcount == 0:
-                raise PlantNotFoundError(plant_id, f"No plant found with ID {plant_id}.")
-        except pg2.errors.UniqueViolation:
-            raise UniqueImagePathError("Image path already exists.")
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
     def delete_plant(self, plant_id: int) -> None:
         """

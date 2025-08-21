@@ -92,6 +92,12 @@ class PlantService:
             plant_name_id = self.get_or_create_plant(plant_name_en, plant_name_ja, botanical_name, conn)
             family_id = self.get_or_create_family(family_name_en, family_name_ja, conn)
             location_id = self.get_or_create_location(location_name_en, location_name_ja, conn)
+            
+            validate_positive_int(plant_name_id, "plant_name_id")
+            validate_positive_int(family_id, "family_id")
+            validate_positive_int(location_id, "location_id")
+            image_path = validate_and_strip_str(image_path, "image_path")
+            validate_date_or_none(plant_date, "plant_date")
 
             plant_id = plant_dao.insert_plant(
                 plant_name_id=plant_name_id,
@@ -108,63 +114,6 @@ class PlantService:
         finally:
             release_connection(conn)
 
-    def insert_plant(
-        self,
-        plant_name_id: int,
-        family_id: int,
-        location_id: int,
-        image_path: str,
-        plant_date: Optional[date] = None,
-    ) -> int:
-        """
-        Insert a new plant record into the database.
-
-        Args:
-            plant_name_id (int): Foreign key to plant_names table.
-            family_id (int): Foreign key to families table.
-            location_id (int): Foreign key to locations table.
-            image_path (str): Path to the plant image.
-            plant_date (date | None, optional): Date associated with the plant. Defaults to today if None.
-
-        Raises:
-            TypeError: If any input is of an incorrect type or format.
-            UniqueImagePathError: If the image path already exists.
-
-        Returns:
-            int: The ID of the newly inserted plant.
-        """
-        validate_positive_int(plant_name_id, "plant_name_id")
-        validate_positive_int(family_id, "family_id")
-        validate_positive_int(location_id, "location_id")
-        image_path = validate_and_strip_str(image_path, "image_path")
-        validate_date_or_none(plant_date, "plant_date")
-
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO plants (
-                        plant_name_id,
-                        family_id,
-                        location_id,
-                        image_path,
-                        plant_date
-                    ) VALUES (%s, %s, %s, %s, %s)
-                    RETURNING plant_id;
-                    """,
-                    (
-                        plant_name_id,
-                        family_id,
-                        location_id,
-                        image_path,
-                        plant_date or date.today(),
-                    ),
-                )
-                plant_id = cur.fetchone()[0]
-                return plant_id
-        except pg2.errors.UniqueViolation:
-            raise UniqueImagePathError("Image path already exists.")
-
     def update_plant_by_names(
         self,
         plant_id: int,
@@ -178,41 +127,52 @@ class PlantService:
         image_path: str,
         plant_date: Optional[date] = None,
     ) -> None:
-        """
-        Update a plant record by specifying plant, family, and location names.
+        """Update an existing plant record using name values instead of foreign key IDs.
 
-        This method resolves or creates IDs for plant name, family, and location
-        by their English and Japanese names, then calls the core update_plant method.
+        This method ensures that related records (plant name, family, location) exist, 
+        retrieving their IDs if present or creating them if missing. It then updates 
+        the target plant record with the resolved foreign key IDs.
 
         Args:
             plant_id (int): Unique identifier of the plant to update.
             plant_name_en (str): English plant name.
             plant_name_ja (str): Japanese plant name.
-            botanical_name (str): Botanical name of the plant.
+            botanical_name (str): Botanical (scientific) name of the plant.
             family_name_en (str): English family name.
             family_name_ja (str): Japanese family name.
             location_name_en (str): English location name.
             location_name_ja (str): Japanese location name.
             image_path (str): Path to the plant image.
-            plant_date (date | None, optional): Date associated with the plant. Defaults to today if None.
+            plant_date (Optional[date], optional): Date associated with the plant. 
+                Defaults to today.
 
         Raises:
-            TypeError: If any input is invalid.
+            TypeError: If an argument is of the wrong type or format.
             PlantNotFoundError: If no plant exists with the specified plant_id.
             UniqueImagePathError: If the image path already exists.
         """
-        plant_name_id = self.get_or_create_plant(plant_name_en=plant_name_en, plant_name_ja=plant_name_ja, botanical_name=botanical_name)
-        family_id = self.get_or_create_family(family_name_en=family_name_en, family_name_ja=family_name_ja)
-        location_id = self.get_or_create_location(location_name_en=location_name_en, location_name_ja=location_name_ja)
+        conn = get_connection()
+        try:
+            plant_dao = PlantDAO(conn)
 
-        self.update_plant(
-            plant_id=plant_id,
-            plant_name_id=plant_name_id,
-            family_id=family_id,
-            location_id=location_id,
-            image_path=image_path,
-            plant_date=plant_date,
-        )
+            plant_name_id = self.get_or_create_plant(plant_name_en, plant_name_ja, botanical_name, conn)
+            family_id = self.get_or_create_family(family_name_en, family_name_ja, conn)
+            location_id = self.get_or_create_location(location_name_en, location_name_ja, conn)
+
+            plant_dao.update_plant(
+                plant_id=plant_id,
+                plant_name_id=plant_name_id,
+                family_id=family_id,
+                location_id=location_id,
+                image_path=image_path,
+                plant_date=plant_date,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            release_connection(conn)
 
     def update_plant(
         self,

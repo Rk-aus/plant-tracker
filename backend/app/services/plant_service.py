@@ -13,7 +13,6 @@ from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 from datetime import date
 from typing import Optional
-from backend.app.db.connections import get_connection, release_connection
 from app.db.plant_dao import PlantDAO
 from app.db.connections import DatabaseConnection
 from app.utils.validators.db_validators import (
@@ -80,6 +79,7 @@ class PlantService:
                 Defaults to today.
 
         Raises:
+            ValueError:
             TypeError: If an argument is of the wrong type or format.
             UniqueImagePathError: If the image path already exists.
 
@@ -193,10 +193,15 @@ class PlantService:
         """
         validate_positive_int(plant_id, "plant_id")
 
-        with self.conn.cursor() as cur:
-            cur.execute("DELETE FROM plants WHERE plant_id = %s;", (plant_id,))
-            if cur.rowcount == 0:
-                raise PlantNotFoundError(plant_id, f"No plant found with plant_id {plant_id}")
+        with DatabaseConnection() as conn:
+            try:
+                plant_dao = PlantDAO(conn)
+
+                plant_dao.delete_plant(plant_id=plant_id)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
     def get_all_plants(self) -> list[dict]:
         """

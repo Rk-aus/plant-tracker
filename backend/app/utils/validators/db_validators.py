@@ -1,8 +1,5 @@
 from datetime import date
 from typing import Any
-from app.exceptions import (
-    UniqueImagePathError,
-    )
 
 def validate_positive_int(value: Any, name: str) -> None:
     """

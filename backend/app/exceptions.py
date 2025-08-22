@@ -2,6 +2,8 @@ class UniqueImagePathError(Exception):
     """Raised when image_path uniqueness is violated."""
     pass
 
+class ValidationError(Exception):
+    pass
 
 class PlantNotFoundError(Exception):
     """

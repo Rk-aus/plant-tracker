@@ -50,6 +50,7 @@ class PlantDAO:
             plant_date (date | None, optional): Date associated with the plant. Defaults to today if None.
 
         Raises:
+            ValueError:
             TypeError: If any input is of an incorrect type or format.
             UniqueImagePathError: If the image path already exists.
 
@@ -96,13 +97,6 @@ class PlantDAO:
             PlantNotFoundError: If no plant exists with the specified plant_id.
             UniqueImagePathError: If the image path already exists.
         """
-        validate_positive_int(plant_id, "plant_id")  
-        validate_positive_int(plant_name_id, "plant_name_id")
-        validate_positive_int(family_id, "family_id")
-        validate_positive_int(location_id, "location_id")
-        validate_and_strip_str(image_path, "image_path")
-        validate_date_or_none(plant_date, "plant_date")
-
         try:
             with self.conn.cursor() as cur:
                 cur.execute(
@@ -141,8 +135,6 @@ class PlantDAO:
             TypeError: If plant_id is not a positive integer.
             PlantNotFoundError: If no plant exists with the specified plant_id.
         """
-        validate_positive_int(plant_id, "plant_id")
-
         with self.conn.cursor() as cur:
             cur.execute("DELETE FROM plants WHERE plant_id = %s;", (plant_id,))
             if cur.rowcount == 0:

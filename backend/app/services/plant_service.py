@@ -167,7 +167,7 @@ class PlantService:
                 validate_positive_int(family_id, "family_id")
                 validate_positive_int(location_id, "location_id")
 
-                plant_dao.update_plant(
+                rows = plant_dao.update_plant(
                     plant_id=plant_id,
                     plant_name_id=plant_name_id,
                     family_id=family_id,
@@ -175,6 +175,8 @@ class PlantService:
                     image_path=image_path,
                     plant_date=plant_date,
                 )
+                if rows == 0:
+                    raise PlantNotFoundError(plant_id, f"No plant found with ID {plant_id}.")
                 conn.commit()
             except Exception:
                 conn.rollback()
@@ -197,7 +199,9 @@ class PlantService:
             try:
                 plant_dao = PlantDAO(conn)
 
-                plant_dao.delete_plant(plant_id=plant_id)
+                rows = plant_dao.delete_plant(plant_id=plant_id)
+                if rows == 0:
+                    raise PlantNotFoundError(plant_id, f"No plant found with ID {plant_id}.")
                 conn.commit()
             except Exception:
                 conn.rollback()

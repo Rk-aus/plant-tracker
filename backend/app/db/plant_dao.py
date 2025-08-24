@@ -80,7 +80,7 @@ class PlantDAO:
         location_id: int,
         image_path: str,
         plant_date: Optional[date] = None,
-    ) -> None:
+    ) -> int:
         """
         Update a plant record with new data.
 
@@ -96,6 +96,9 @@ class PlantDAO:
             TypeError: If any input is of an incorrect type or format.
             PlantNotFoundError: If no plant exists with the specified plant_id.
             UniqueImagePathError: If the image path already exists.
+
+        Returns:
+            int: The number of rows that were updated (0 if no matching plant_id was found).
         """
         try:
             with self.conn.cursor() as cur:
@@ -119,8 +122,7 @@ class PlantDAO:
                         plant_id,
                     ),
                 )
-            if cur.rowcount == 0:
-                raise PlantNotFoundError(plant_id, f"No plant found with ID {plant_id}.")
+                return cur.rowcount
         except pg2.errors.UniqueViolation:
             raise UniqueImagePathError("Image path already exists.")
 
@@ -134,11 +136,13 @@ class PlantDAO:
         Raises:
             TypeError: If plant_id is not a positive integer.
             PlantNotFoundError: If no plant exists with the specified plant_id.
+
+        Returns:
+            int: The number of rows that were deleted (0 if no matching plant_id was found).
         """
         with self.conn.cursor() as cur:
             cur.execute("DELETE FROM plants WHERE plant_id = %s;", (plant_id,))
-            if cur.rowcount == 0:
-                raise PlantNotFoundError(plant_id, f"No plant found with plant_id {plant_id}")
+            return cur.rowcount
 
     def get_all_plants(self) -> list[dict]:
         """

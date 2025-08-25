@@ -79,8 +79,8 @@ class PlantService:
                 Defaults to today.
 
         Raises:
-            ValueError:
-            TypeError: If an argument is of the wrong type or format.
+            TypeError: If an argument is of the wrong type.
+            ValueError: If an argument is of the wrong format.
             UniqueImagePathError: If the image path already exists.
 
         Returns:
@@ -148,6 +148,7 @@ class PlantService:
 
         Raises:
             TypeError: If an argument is of the wrong type or format.
+            ValueError: If an argument is of the wrong format.
             PlantNotFoundError: If no plant exists with the specified plant_id.
             UniqueImagePathError: If the image path already exists.
         """
@@ -190,7 +191,8 @@ class PlantService:
             plant_id (int): The unique identifier of the plant to delete.
 
         Raises:
-            TypeError: If plant_id is not a positive integer.
+            TypeError: If plant_id is not an integer.
+            ValueError: If the value is not positive.
             PlantNotFoundError: If no plant exists with the specified plant_id.
         """
         validate_positive_int(plant_id, "plant_id")

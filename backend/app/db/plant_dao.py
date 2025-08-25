@@ -39,8 +39,7 @@ class PlantDAO:
         image_path: str,
         plant_date: Optional[date] = None,
     ) -> int:
-        """
-        Insert a new plant record into the database.
+        """Insert a new plant record into the database.
 
         Args:
             plant_name_id (int): Foreign key to plant_names table.
@@ -81,8 +80,7 @@ class PlantDAO:
         image_path: str,
         plant_date: Optional[date] = None,
     ) -> int:
-        """
-        Update a plant record with new data.
+        """Update a plant record with new data.
 
         Args:
             plant_id (int): Unique identifier of the plant to update.
@@ -127,8 +125,7 @@ class PlantDAO:
             raise UniqueImagePathError("Image path already exists.")
 
     def delete_plant(self, plant_id: int) -> None:
-        """
-        Delete a plant record by its ID.
+        """Delete a plant record by its ID.
 
         Args:
             plant_id (int): The unique identifier of the plant to delete.

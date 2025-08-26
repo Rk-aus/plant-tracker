@@ -3,11 +3,6 @@ from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 from datetime import date
 from typing import Optional
-from app.utils.validators.db_validators import (
-    validate_positive_int, 
-    validate_and_strip_str,
-    validate_date_or_none,
-)
 from app.exceptions import (
     PlantNotFoundError,
     InvalidLanguageError,
@@ -49,8 +44,6 @@ class PlantDAO:
             plant_date (date | None, optional): Date associated with the plant. Defaults to today if None.
 
         Raises:
-            ValueError:
-            TypeError: If any input is of an incorrect type or format.
             UniqueImagePathError: If the image path already exists.
 
         Returns:
@@ -91,8 +84,6 @@ class PlantDAO:
             plant_date (date | None, optional): Date associated with the plant. Defaults to None.
 
         Raises:
-            TypeError: If any input is of an incorrect type or format.
-            PlantNotFoundError: If no plant exists with the specified plant_id.
             UniqueImagePathError: If the image path already exists.
 
         Returns:
@@ -129,10 +120,6 @@ class PlantDAO:
 
         Args:
             plant_id (int): The unique identifier of the plant to delete.
-
-        Raises:
-            TypeError: If plant_id is not a positive integer.
-            PlantNotFoundError: If no plant exists with the specified plant_id.
 
         Returns:
             int: The number of rows that were deleted (0 if no matching plant_id was found).
@@ -172,13 +159,7 @@ class PlantDAO:
                 - location_name_ja (str)
                 - image_path (str)
                 - plant_date (date)
-
-        Raises:
-            TypeError: If plant_id is not a positive integer.
-            PlantNotFoundError: If no plant exists with the specified plant_id.
         """
-        validate_positive_int(plant_id, "plant_id")
-
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(GET_PLANT_DETAILS, (plant_id,),)
             result = cur.fetchone()
@@ -231,10 +212,6 @@ class PlantDAO:
                 - location_name_ja (str)
                 - image_path (str)
                 - plant_date (date)
-
-        Raises:
-            ValueError: If an invalid search field is provided.
-            InvalidLanguageError: If an unsupported language code is given.
         """
         valid_fields = {
             "name": {"en": "plant_name_en", "ja": "plant_name_ja"},
@@ -256,10 +233,6 @@ class PlantDAO:
 
     def get_or_create_plant(self, plant_name_en: str, plant_name_ja: str, botanical_name: str) -> int:
         """Get or insert a plant name entry with botanical name."""
-        plant_name_en = validate_and_strip_str(plant_name_en, "plant_name_en")
-        plant_name_ja = validate_and_strip_str(plant_name_ja, "plant_name_ja")
-        botanical_name = validate_and_strip_str(botanical_name, "botanical_name")
-
         with self.conn.cursor() as cur:
             cur.execute("""
                 SELECT plant_name_id FROM plant_names
@@ -304,12 +277,8 @@ class PlantDAO:
             int: ID of the existing or newly inserted row.
 
         Raises:
-            TypeError: If any name is empty or invalid.
-            UniqueViolation: If a uniqueness constraint is violated during insertion.
+            UniqueImagePathError: If the image path already exists.
         """
-        name_en_val = validate_and_strip_str(name_en_val, name_en_col)
-        name_ja_val = validate_and_strip_str(name_ja_val, name_ja_col)
-
         with self.conn.cursor() as cur:
             select_query = sql.SQL("""
                 SELECT {id_column}

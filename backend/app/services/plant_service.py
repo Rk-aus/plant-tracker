@@ -26,12 +26,6 @@ from app.exceptions import (
     InvalidSearchFieldError,
     UniqueImagePathError,
 )
-from app.db.queries import (
-    GET_ALL_PLANTS,
-    GET_PLANT_DETAILS,
-    LIST_PLANTS_BY_DATE,
-    SEARCH_PLANTS,
-)
 
 class PlantService:
     """
@@ -79,8 +73,7 @@ class PlantService:
                 Defaults to today.
 
         Raises:
-            TypeError: If an argument is of the wrong type.
-            ValueError: If an argument is of the wrong format.
+            ValidationError: If an argument is of the wrong type or format.
             UniqueImagePathError: If the image path already exists.
 
         Returns:
@@ -147,8 +140,7 @@ class PlantService:
                 Defaults to today.
 
         Raises:
-            TypeError: If an argument is of the wrong type or format.
-            ValueError: If an argument is of the wrong format.
+            ValidationError: If an argument is of the wrong type or format.
             PlantNotFoundError: If no plant exists with the specified plant_id.
             UniqueImagePathError: If the image path already exists.
         """
@@ -191,8 +183,7 @@ class PlantService:
             plant_id (int): The unique identifier of the plant to delete.
 
         Raises:
-            TypeError: If plant_id is not an integer.
-            ValueError: If the value is not positive.
+            ValidationError: If plant_id is not an integer or not positive.
             PlantNotFoundError: If no plant exists with the specified plant_id.
         """
         validate_positive_int(plant_id, "plant_id")
@@ -216,9 +207,15 @@ class PlantService:
         Returns:
             list[dict]: List of all plant records.
         """
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(GET_ALL_PLANTS)
-            return cur.fetchall()
+        with DatabaseConnection() as conn:
+            try:
+                plant_dao = PlantDAO(conn)
+                plants = plant_dao.get_all_plants()
+                return plants
+        
+            except Exception:
+                conn.rollback()
+                raise
         
     def get_plant_details(self, plant_id: int) -> dict:
         """
@@ -242,13 +239,12 @@ class PlantService:
                 - plant_date (date)
 
         Raises:
-            TypeError: If plant_id is not a positive integer.
+            ValidationError: If plant_id is not an integer or not positive.
             PlantNotFoundError: If no plant exists with the specified plant_id.
         """
         validate_positive_int(plant_id, "plant_id")
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(GET_PLANT_DETAILS, (plant_id,),)
             result = cur.fetchone()
             if result is None:
                 raise PlantNotFoundError(plant_id, f"No plant found with id {plant_id}")
@@ -266,7 +262,6 @@ class PlantService:
             list[dict]: List of plant records within the date range, sorted newest first.
         """
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(LIST_PLANTS_BY_DATE, {"start_date": start_date, "end_date": end_date})
             return cur.fetchall()
         
     def search_plants(self, query: str, search_field: str, lang: str = "en") -> list[dict]:
@@ -316,10 +311,7 @@ class PlantService:
             raise InvalidLanguageError(lang)
 
         column = valid_fields[search_field][lang]
-        query_sql = SEARCH_PLANTS.format(column=column)
-
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query_sql, (f"%{query}%",))
             return cur.fetchall()
 
     def get_or_create_plant(self, plant_name_en: str, plant_name_ja: str, botanical_name: str) -> int:

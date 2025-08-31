@@ -163,8 +163,6 @@ class PlantDAO:
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(GET_PLANT_DETAILS, (plant_id,),)
             result = cur.fetchone()
-            if result is None:
-                raise PlantNotFoundError(plant_id, f"No plant found with id {plant_id}")
             return result
 
     def list_plants_by_date(self, start_date: Optional[date] = None, end_date: Optional[date] = None) -> list[dict]:

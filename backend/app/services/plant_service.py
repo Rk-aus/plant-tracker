@@ -243,12 +243,17 @@ class PlantService:
             PlantNotFoundError: If no plant exists with the specified plant_id.
         """
         validate_positive_int(plant_id, "plant_id")
-
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            result = cur.fetchone()
-            if result is None:
-                raise PlantNotFoundError(plant_id, f"No plant found with id {plant_id}")
-            return result
+        with DatabaseConnection() as conn:
+            try:
+                plant_dao = PlantDAO(conn)
+                plant_id = plant_dao.get_plant_details(plant_id)
+                if plant_id is None:
+                    raise PlantNotFoundError(plant_id, f"No plant found with id {plant_id}")
+                return plant_id
+                
+            except Exception:
+                conn.rollback()
+                raise
 
     def list_plants_by_date(self, start_date: Optional[date] = None, end_date: Optional[date] = None) -> list[dict]:
         """
